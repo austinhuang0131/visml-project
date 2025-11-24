@@ -1,0 +1,15 @@
+{
+  "buffer_distance_m": 5,
+  "tp_length_m": 12587.89,
+  "fp_length_m": 289.63,
+  "fn_length_m": 818.66,
+  "tp_count": 732,
+  "fp_count": 20,
+  "fn_count": 828,
+  "ml_total_length_m": 12877.52,
+  "osm_total_length_m": 15128.95,
+  "precision": 0.9775,
+  "recall": 0.9389,
+  "f1_score": 0.9578,
+  "iou": 0.9191
+}
