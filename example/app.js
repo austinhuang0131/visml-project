@@ -68,6 +68,7 @@ async function loadTiles() {
             const parts = line.split(',');
             if (parts.length < 9) return;
             
+            // CSV columns: , idd, zoom, xtile, ytile, topleft_x, topleft_y, bottomright_x, bottomright_y
             const xtile = parts[3];
             const ytile = parts[4];
             const topLeftLon = parseFloat(parts[5]);

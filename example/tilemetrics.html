@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tile Metrics Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #f1f5f9;
+        }
+
+        .header p {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .icon {
+            width: 32px;
+            height: 32px;
+            display: inline-block;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .stat-card:hover {
+            border-color :#475569;
+        }
+
+        .stat-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+
+        .stat-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+
+        .stat-range {
+            font-size: 11px;
+            color: #64748b;
+        }
+
+        /* Controls Panel */
+        .controls {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .control-group label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #cbd5e1;
+            margin-bottom: 8px;
+        }
+
+        select, input[type="range"] {
+            background: #1e293b;
+            color: #f1f5f9;
+            border: 1px solid #475569;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input[type="range"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .range-value {
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+
+        /* Main Visualization */
+        .visualization {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(10px);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .vis-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Heatmap */
+        .heatmap-container {
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+
+        .heatmap-grid {
+            display: inline-grid;
+            gap: 2px;
+            padding: 12px;
+        }
+
+        .heatmap-cell {
+            width: 48px;
+            height: 48px;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .heatmap-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .heatmap-cell.empty {
+            background: rgba(15, 23, 42, 0.3);
+            cursor: default;
+        }
+
+        .heatmap-cell.empty:hover {
+            transform: scale(1);
+        }
+
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 8px;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+        }
+
+        .tooltip.show {
+            display: block;
+        }
+
+        /* Legend */
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 16px;
+            font-size: 12px;
+        }
+
+        .legend-bar {
+            height: 16px;
+            flex: 1;
+            max-width: 200px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #0f172a, #3b82f6);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #1e293b;
+            border-bottom: 2px solid #475569;
+        }
+
+        th {
+            padding: 12px 8px;
+            text-align: left;
+            color: #cbd5e1;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #334155;
+        }
+
+        tbody tr {
+            transition: background-color 0.2s;
+        }
+
+        tbody tr:hover {
+            background: rgba(100, 116, 139, 0.1);
+        }
+
+        tbody tr:nth-child(even) {
+            background: rgba(15, 23, 42, 0.3);
+        }
+
+        .metric-good { color: #4ade80; }
+        .metric-okay { color: #facc15; }
+        .metric-bad { color: #f87171; }
+
+        .metric-tp { color: #2dd4bf; }
+        .metric-fp { color: #f87171; }
+        .metric-fn { color: #fbbf24; }
+
+        /* Back Button */
+        .back-btn {
+            display: inline-block;
+            padding: 10px 16px;
+            background: #3b82f6;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #2563eb;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 48px 24px;
+            color: #94a3b8;
+        }
+
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+            padding: 16px;
+            color: #fca5a5;
+            margin: 16px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-btn">← Back to Map</a>
+
+        <div class="header">
+            <h1>📊 Tile-Level Performance Analysis</h1>
+            <p id="header-info">Loading tile metrics...</p>
+        </div>
+
+        <div id="error-container"></div>
+
+        <div id="stats-section" class="stats-grid" style="display: none;">
+            <!-- Stats will be populated here -->
+        </div>
+
+        <div class="controls">
+            <div class="controls-grid">
+                <div class="control-group">
+                    <label>View Mode</label>
+                    <select id="view-mode">
+                        <option value="heatmap">Heatmap Grid</option>
+                        <option value="scatter">Scatter Plot</option>
+                        <option value="table">Data Table</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Metric to Display</label>
+                    <select id="metric-select">
+                        <option value="f1_score">F1 Score</option>
+                        <option value="precision">Precision</option>
+                        <option value="recall">Recall</option>
+                        <option value="iou">IoU</option>
+                        <option value="tp_length_m">True Positive (m)</option>
+                        <option value="fp_length_m">False Positive (m)</option>
+                        <option value="fn_length_m">False Negative (m)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Sort By</label>
+                    <select id="sort-select">
+                        <option value="f1_score">F1 Score</option>
+                        <option value="precision">Precision</option>
+                        <option value="recall">Recall</option>
+                        <option value="iou">IoU</option>
+                        <option value="tp_length_m">True Positive (m)</option>
+                        <option value="fp_length_m">False Positive (m)</option>
+                        <option value="fn_length_m">False Negative (m)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Filter Threshold</label>
+                    <input type="range" id="filter-threshold" min="0" max="100" value="0" step="1">
+                    <div class="range-value" id="threshold-display">≥ 0%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <div id="heatmap-section">
+                <h3 class="vis-title">📈 Spatial Heatmap: <span id="metric-label">F1 Score</span></h3>
+                <div class="heatmap-container">
+                    <div id="heatmap-grid" class="heatmap-grid"></div>
+                </div>
+                <div class="legend">
+                    <span>Low</span>
+                    <div class="legend-bar"></div>
+                    <span>High</span>
+                </div>
+            </div>
+
+            <div id="scatter-section" style="display: none;">
+                <h3 class="vis-title">📊 Performance Scatter: <span id="scatter-label">F1 Score</span></h3>
+                <div style="height: 400px; background: rgba(15,23,42,0.3); border-radius: 6px; position: relative;" id="scatter-plot"></div>
+                <p style="text-align: center; font-size: 12px; color: #94a3b8; margin-top: 12px;">Showing top 50 tiles sorted by selected metric</p>
+            </div>
+
+            <div id="table-section" style="display: none;">
+                <h3 class="vis-title">📋 Data Table</h3>
+                <div class="table-container">
+                    <table id="data-table">
+                        <thead>
+                            <tr>
+                                <th>Tile ID</th>
+                                <th>Position</th>
+                                <th>F1 Score</th>
+                                <th>Precision</th>
+                                <th>Recall</th>
+                                <th>IoU</th>
+                                <th>TP (m)</th>
+                                <th>FP (m)</th>
+                                <th>FN (m)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body">
+                            <!-- Will be populated -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Metrics config
+        const metricsConfig = {
+            f1_score: { label: 'F1 Score', isPercentage: true },
+            precision: { label: 'Precision', isPercentage: true },
+            recall: { label: 'Recall', isPercentage: true },
+            iou: { label: 'IoU', isPercentage: true },
+            tp_length_m: { label: 'True Positive (m)', isPercentage: false },
+            fp_length_m: { label: 'False Positive (m)', isPercentage: false },
+            fn_length_m: { label: 'False Negative (m)', isPercentage: false }
+        };
+
+        let data = null;
+        let stats = null;
+        let gridLayout = null;
+
+        // Load data
+        async function loadData() {
+            try {
+                const response = await fetch('../output/confusion_matrix_per_tile.json');
+                if (!response.ok) throw new Error(`Failed to load: ${response.status}`);
+                data = await response.json();
+                processData();
+                render();
+            } catch (error) {
+                showError(`Error loading tile metrics: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        function processData() {
+            // Calculate grid layout
+            const minX = Math.min(...data.map(d => d.xtile));
+            const maxX = Math.max(...data.map(d => d.xtile));
+            const minY = Math.min(...data.map(d => d.ytile));
+            const maxY = Math.max(...data.map(d => d.ytile));
+
+            gridLayout = {
+                cols: maxX - minX + 1,
+                rows: maxY - minY + 1,
+                minX, minY, maxX, maxY
+            };
+
+            // Calculate stats
+            stats = {
+                total_tiles: data.length
+            };
+
+            Object.keys(metricsConfig).forEach(key => {
+                const values = data.map(d => d[key] || 0);
+                const sum = values.reduce((a, b) => a + b, 0);
+                const avg = sum / values.length;
+                const sorted = [...values].sort((a, b) => a - b);
+                const median = sorted[Math.floor(sorted.length / 2)];
+                const min = Math.min(...values);
+                const max = Math.max(...values);
+
+                stats[key] = { avg, median, min, max };
+            });
+
+            document.getElementById('header-info').textContent = 
+                `Analyzing ${data.length} tiles • Grid: ${gridLayout.cols}×${gridLayout.rows}`;
+        }
+
+        function showError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+        }
+
+        function formatValue(value, isPercentage) {
+            return isPercentage ? (value * 100).toFixed(1) + '%' : value.toFixed(1);
+        }
+
+        function getColorIntensity(value, metricKey) {
+            const isLength = metricKey.includes('length');
+            if (isLength) {
+                const max = Math.max(...data.map(d => d[metricKey] || 0));
+                return value / (max || 1);
+            }
+            return value;
+        }
+
+        function getHeatmapColor(value, metricKey) {
+            const intensity = getColorIntensity(value, metricKey);
+
+            if (metricKey === 'fp_length_m' || metricKey === 'fn_length_m') {
+                // Red scale for errors
+                const r = Math.floor(255 * intensity);
+                return `rgb(${r}, ${Math.floor(50 * (1 - intensity))}, ${Math.floor(50 * (1 - intensity))})`;
+            } else if (metricKey === 'tp_length_m') {
+                // Green scale for true positives
+                const g = Math.floor(255 * intensity);
+                return `rgb(${Math.floor(50 * (1 - intensity))}, ${g}, ${Math.floor(50 * (1 - intensity))})`;
+            } else {
+                // Blue scale for performance metrics
+                const b = Math.floor(255 * intensity);
+                return `rgb(${Math.floor(50 * (1 - intensity))}, ${Math.floor(150 * intensity)}, ${b})`;
+            }
+        }
+
+        function renderStats() {
+            const statsSection = document.getElementById('stats-section');
+            statsSection.innerHTML = '';
+
+            const metricKeys = ['f1_score', 'precision', 'recall', 'iou'];
+            const colors = ['#3b82f6', '#10b981', '#a855f7', '#f97316'];
+
+            metricKeys.forEach((key, idx) => {
+                const s = stats[key];
+                const cfg = metricsConfig[key];
+                const card = document.createElement('div');
+                card.className = 'stat-card';
+                card.innerHTML = `
+                    <div class="stat-label">
+                        <span class="stat-dot" style="background: ${colors[idx]}"></span>
+                        ${cfg.label}
+                    </div>
+                    <div class="stat-value">${formatValue(s.avg, cfg.isPercentage)}</div>
+                    <div class="stat-range">
+                        Range: ${formatValue(s.min, cfg.isPercentage)} - ${formatValue(s.max, cfg.isPercentage)}
+                    </div>
+                `;
+                statsSection.appendChild(card);
+            });
+
+            statsSection.style.display = 'grid';
+        }
+
+        function renderHeatmap() {
+            const metricKey = document.getElementById('metric-select').value;
+            const filterThreshold = parseFloat(document.getElementById('filter-threshold').value);
+            const isLength = metricKey.includes('length');
+            const threshold = isLength ? filterThreshold : filterThreshold / 100;
+
+            const grid = document.getElementById('heatmap-grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${gridLayout.cols}, 48px)`;
+
+            for (let row = 0; row < gridLayout.rows; row++) {
+                for (let col = 0; col < gridLayout.cols; col++) {
+                    const tile = data.find(
+                        t => t.xtile === gridLayout.minX + col && t.ytile === gridLayout.minY + row
+                    );
+
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+
+                    if (!tile) {
+                        cell.classList.add('empty');
+                    } else {
+                        const value = tile[metricKey] || 0;
+                        if (value < threshold) {
+                            cell.style.opacity = '0.3';
+                        }
+
+                        const bgColor = getHeatmapColor(value, metricKey);
+                        cell.style.backgroundColor = bgColor;
+                        cell.textContent = String(tile.tile_id).substring(0, 3);
+
+                        cell.addEventListener('mouseenter', () => {
+                            const tooltip = cell.querySelector('.tooltip') || (() => {
+                                const t = document.createElement('div');
+                                t.className = 'tooltip show';
+                                t.innerHTML = `
+                                    <div><strong>${tile.tile_id}</strong></div>
+                                    <div>${formatValue(value, metricsConfig[metricKey].isPercentage)}</div>
+                                    <div style="color: #94a3b8;">(${tile.xtile}, ${tile.ytile})</div>
+                                `;
+                                cell.appendChild(t);
+                                return t;
+                            })();
+                            tooltip.classList.add('show');
+                        });
+
+                        cell.addEventListener('mouseleave', () => {
+                            const tooltip = cell.querySelector('.tooltip');
+                            if (tooltip) tooltip.classList.remove('show');
+                        });
+                    }
+
+                    grid.appendChild(cell);
+                }
+            }
+
+            document.getElementById('metric-label').textContent = metricsConfig[metricKey].label;
+        }
+
+        function renderScatter() {
+            const metricKey = document.getElementById('metric-select').value;
+            const sortKey = document.getElementById('sort-select').value;
+            const cfg = metricsConfig[metricKey];
+
+            const sorted = [...data].sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0)).slice(0, 50);
+            const plot = document.getElementById('scatter-plot');
+            plot.innerHTML = '';
+
+            const maxValue = Math.max(...data.map(d => d[metricKey] || 0));
+
+            sorted.forEach((tile, idx) => {
+                const value = tile[metricKey] || 0;
+                const normalizedValue = value / (maxValue || 1);
+                const dot = document.createElement('div');
+                dot.className = 'scatter-dot';
+                dot.style.cssText = `
+                    position: absolute;
+                    left: ${(idx / 50) * 100}%;
+                    bottom: ${normalizedValue * 90}%;
+                    width: 12px;
+                    height: 12px;
+                    background: #3b82f6;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    opacity: 0.7;
+                `;
+
+                dot.addEventListener('mouseenter', () => {
+                    dot.style.width = '16px';
+                    dot.style.height = '16px';
+                    dot.style.opacity = '1';
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip show';
+                    tooltip.innerHTML = `
+                        <div><strong>${tile.tile_id}</strong></div>
+                        <div>${formatValue(value, cfg.isPercentage)}</div>
+                    `;
+                    tooltip.style.cssText = `
+                        position: absolute;
+                        bottom: 100%;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: rgba(0,0,0,0.9);
+                        color: white;
+                        padding: 8px 12px;
+                        border-radius: 4px;
+                        font-size: 11px;
+                        white-space: nowrap;
+                        margin-bottom: 8px;
+                    `;
+                    dot.appendChild(tooltip);
+                });
+
+                dot.addEventListener('mouseleave', () => {
+                    dot.style.width = '12px';
+                    dot.style.height = '12px';
+                    dot.style.opacity = '0.7';
+                    const tooltip = dot.querySelector('.tooltip');
+                    if (tooltip) tooltip.remove();
+                });
+
+                plot.appendChild(dot);
+            });
+
+            document.getElementById('scatter-label').textContent = cfg.label;
+        }
+
+        function renderTable() {
+            const metricKey = document.getElementById('metric-select').value;
+            const sortKey = document.getElementById('sort-select').value;
+            const filterThreshold = parseFloat(document.getElementById('filter-threshold').value);
+            const isLength = metricKey.includes('length');
+            const threshold = isLength ? filterThreshold : filterThreshold / 100;
+
+            const sorted = [...data]
+                .filter(tile => (tile[metricKey] || 0) >= threshold)
+                .sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            sorted.forEach((tile, idx) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${tile.tile_id}</td>
+                    <td>${tile.xtile}, ${tile.ytile}</td>
+                    <td><span class="metric-${tile.f1_score > 0.7 ? 'good' : tile.f1_score > 0.4 ? 'okay' : 'bad'}">
+                        ${formatValue(tile.f1_score, true)}
+                    </span></td>
+                    <td>${formatValue(tile.precision, true)}</td>
+                    <td>${formatValue(tile.recall, true)}</td>
+                    <td>${formatValue(tile.iou, true)}</td>
+                    <td><span class="metric-tp">${formatValue(tile.tp_length_m, false)}</span></td>
+                    <td><span class="metric-fp">${formatValue(tile.fp_length_m, false)}</span></td>
+                    <td><span class="metric-fn">${formatValue(tile.fn_length_m, false)}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function render() {
+            const viewMode = document.getElementById('view-mode').value;
+            
+            document.getElementById('heatmap-section').style.display = viewMode === 'heatmap' ? 'block' : 'none';
+            document.getElementById('scatter-section').style.display = viewMode === 'scatter' ? 'block' : 'none';
+            document.getElementById('table-section').style.display = viewMode === 'table' ? 'block' : 'none';
+
+            renderStats();
+
+            if (viewMode === 'heatmap') {
+                renderHeatmap();
+            } else if (viewMode === 'scatter') {
+                renderScatter();
+            } else if (viewMode === 'table') {
+                renderTable();
+            }
+        }
+
+        // Event listeners
+        document.getElementById('view-mode').addEventListener('change', render);
+        document.getElementById('metric-select').addEventListener('change', render);
+        document.getElementById('sort-select').addEventListener('change', () => {
+            const viewMode = document.getElementById('view-mode').value;
+            if (viewMode === 'scatter' || viewMode === 'table') render();
+        });
+
+        document.getElementById('filter-threshold').addEventListener('input', (e) => {
+            const metricKey = document.getElementById('metric-select').value;
+            const isLength = metricKey.includes('length');
+            const value = parseFloat(e.target.value);
+            const display = isLength ? `≥ ${value}m` : `≥ ${value.toFixed(0)}%`;
+            document.getElementById('threshold-display').textContent = display;
+
+            const viewMode = document.getElementById('view-mode').value;
+            if (viewMode === 'heatmap' || viewMode === 'table') render();
+        });
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>

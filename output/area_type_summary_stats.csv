@@ -1,0 +1,7 @@
+,f1_score,f1_score,f1_score,f1_score,f1_score,precision,precision,recall,recall,false_positive_rate,false_positive_rate,false_negative_rate,false_negative_rate,building_coverage_pct
+,mean,std,min,max,count,mean,std,mean,std,mean,std,mean,std,mean
+area_type,,,,,,,,,,,,,,
+Open,0.891,0.135,0.673,1.0,8,0.923,0.158,0.903,0.188,0.077,0.158,0.097,0.188,5.3
+Low Density,0.961,0.096,0.482,1.0,46,0.997,0.013,0.939,0.138,0.003,0.013,0.061,0.138,19.502
+Medium Density,0.938,0.115,0.54,1.0,30,0.935,0.146,0.953,0.097,0.065,0.146,0.047,0.097,45.15
+High Density,0.968,0.055,0.839,1.0,9,0.956,0.096,0.985,0.019,0.044,0.096,0.015,0.019,71.348
