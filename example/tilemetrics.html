@@ -1887,25 +1887,21 @@
 
         .grid-row-overview {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            grid-template-rows: auto auto;
+            grid-template-columns: 1fr 1fr;
             gap: var(--space-xl);
             align-items: start;
         }
         
-        .overview-confusion {
-            grid-column: 1;
-            grid-row: 1;
+        .overview-spatial {
+            grid-column: 1 / -1;
         }
         
-        .overview-spatial {
-            grid-column: 2;
-            grid-row: 1;
+        .overview-confusion {
+            grid-column: 1;
         }
         
         .overview-metrics {
-            grid-column: 1 / -1;
-            grid-row: 2;
+            grid-column: 2;
         }
 
         .grid-row-main {
@@ -2090,19 +2086,9 @@
             <main class="app-content">
                 <div class="dashboard-grid">
                     
-                    <!-- Row 1: Overview - Top: Confusion Matrix + Spatial View, Bottom: Key Metrics -->
+                    <!-- Row 1: Overview - Spatial View, Confusion Matrix, Key Metrics -->
                     <section class="grid-row grid-row-overview" id="overview-row">
-                        <!-- Top Left: Confusion Matrix -->
-                        <div id="global-confusion-card" class="card card-hero overview-confusion">
-                            <div id="global-confusion-matrix" class="global-confusion-matrix" style="display: none;">
-                                <h2>Global Confusion Matrix (All Tiles)</h2>
-                                <div class="cm-grid">
-                                    <!-- Will be populated by renderGlobalConfusionMatrix() -->
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Top Right: Spatial View -->
+                        <!-- First: Spatial View (Full Width) -->
                         <div class="card card-visualization overview-spatial" id="spatial-card">
                             <div id="spatial-section" style="min-height: 700px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
@@ -2163,7 +2149,17 @@
             </div>
                         </div>
                         
-                        <!-- Bottom: Key Metrics (Full Width) -->
+                        <!-- Second: Confusion Matrix -->
+                        <div id="global-confusion-card" class="card card-hero overview-confusion">
+                            <div id="global-confusion-matrix" class="global-confusion-matrix" style="display: none;">
+                                <h2>Global Confusion Matrix (All Tiles)</h2>
+                                <div class="cm-grid">
+                                    <!-- Will be populated by renderGlobalConfusionMatrix() -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Third: Key Metrics -->
                         <div id="metrics-summary-card" class="card card-metrics overview-metrics">
                             <h3 class="card-title">Key Metrics</h3>
                             <div id="stats-section" class="stats-grid" style="display: none;">
