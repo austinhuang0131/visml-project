@@ -792,6 +792,171 @@
             background: #2563eb;
         }
 
+        /* Parallel Coordinates Styles */
+        .parallel-axis {
+            stroke: #64748b;
+            stroke-width: 2;
+        }
+
+        .parallel-line {
+            fill: none;
+            stroke-width: 1.5;
+            opacity: 0.4;
+            transition: opacity 0.2s, stroke-width 0.2s;
+        }
+
+        .parallel-line:hover {
+            opacity: 1;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 4px currentColor);
+        }
+
+        .parallel-line.highlighted {
+            stroke: #facc15 !important;
+            stroke-width: 3;
+            opacity: 1;
+            filter: drop-shadow(0 0 6px #facc15);
+        }
+
+        .parallel-line.dimmed {
+            opacity: 0.1;
+        }
+
+        /* Tile Filter Dropdown Styles */
+        .tile-filter-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tile-filter-dropdown-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.2);
+            color: #e2e8f0;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .tile-filter-dropdown-btn:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+
+        .tile-filter-dropdown-btn::after {
+            content: '▼';
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+
+        .tile-filter-dropdown-btn.open::after {
+            transform: rotate(180deg);
+        }
+
+        .tile-checkboxes {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 4px;
+            min-width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        .tile-checkboxes.open {
+            display: block;
+        }
+
+        .tile-checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            transition: background 0.2s;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.5);
+        }
+
+        .tile-checkbox-item:last-child {
+            border-bottom: none;
+        }
+
+        .tile-checkbox-item:hover {
+            background: rgba(59, 130, 246, 0.15);
+        }
+
+        .tile-checkbox-item.select-all {
+            background: rgba(30, 41, 59, 0.8);
+            border-bottom: 2px solid rgba(59, 130, 246, 0.4);
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .tile-checkbox-item input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .tile-checkbox-item label {
+            cursor: pointer;
+            font-size: 12px;
+            color: #cbd5e1;
+            user-select: none;
+            flex: 1;
+        }
+
+        .tile-checkbox-item.select-all label {
+            font-weight: 600;
+            color: #e2e8f0;
+        }
+
+        .tile-checkbox-item input[type="checkbox"]:checked + label {
+            color: #60a5fa;
+            font-weight: 500;
+        }
+
+        .tile-search-input {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 4px;
+            color: #e2e8f0;
+            font-size: 12px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .tile-search-input:focus {
+            border-color: rgba(59, 130, 246, 0.6);
+            background: rgba(30, 41, 59, 0.95);
+        }
+
+        .tile-search-input::placeholder {
+            color: #64748b;
+        }
+
+        .tile-search-container {
+            padding: 10px;
+            background: rgba(30, 41, 59, 0.8);
+            border-bottom: 2px solid rgba(59, 130, 246, 0.4);
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
         .loading {
             text-align: center;
             padding: 48px 24px;
@@ -838,6 +1003,7 @@
                     <select id="view-mode">
                         <option value="spatial">Spatial View</option>
                         <option value="scatter">Scatter Plot</option>
+                        <option value="parallel">Parallel Coordinates</option>
                         <option value="statistical">Statistical Analysis</option>
                         <option value="erroranalysis">Error & Performance Analysis</option>
                         <option value="table">Data Table</option>
@@ -848,6 +1014,12 @@
                     <label>Minimum F1 Score (%)</label>
                     <input type="range" id="filter-threshold" min="0" max="100" value="0" step="1">
                     <div class="range-value" id="threshold-display">≥ 0%</div>
+                </div>
+
+                <div class="control-group">
+                    <button onclick="clearSelection()" style="padding: 6px 12px; background: rgba(30, 41, 59, 0.4); color: #94a3b8; border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 6px; cursor: pointer; font-size: 12px; transition: all 0.2s;" onmouseover="this.style.background='rgba(30, 41, 59, 0.6)'; this.style.color='#cbd5e1'" onmouseout="this.style.background='rgba(30, 41, 59, 0.4)'; this.style.color='#94a3b8'">
+                        Clear (<span id="selection-count">0</span>)
+                    </button>
                 </div>
             </div>
         </div>
@@ -915,10 +1087,38 @@
                         <div style="height: 500px; background: rgba(15,23,42,0.3); border-radius: 6px; position: relative;" id="scatter-plot"></div>
                         <div id="scatter-legend" style="margin-top: 15px;"></div>
                     </div>
-                    <!-- Right: Geographic Map -->
+                    <!-- Right: Heatmap Grid -->
                     <div>
-                        <div id="scatter-map-container" style="height: 500px; border-radius: 8px; overflow: hidden; border: 2px solid rgba(255, 255, 255, 0.1);"></div>
-                        <p style="text-align: center; font-size: 12px; color: #94a3b8; margin-top: 12px;">Geographic distribution colored by F1 Score performance</p>
+                        <div id="scatter-heatmap-container" style="height: 500px; overflow: auto; background: rgba(15,23,42,0.3); border-radius: 6px; padding: 15px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="parallel-section" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="flex: 1;">
+                        <h3 class="vis-title" style="margin: 0;">🌐 Parallel Coordinates: Multi-Metric Analysis</h3>
+                        <p style="font-size: 13px; color: #cbd5e1; margin: 5px 0 0 0;">
+                            Each line represents one tile across 7 metrics. Hover to highlight.
+                        </p>
+                    </div>
+                    <div class="tile-filter-container">
+                        <button class="tile-filter-dropdown-btn" onclick="toggleParallelTileDropdown()">
+                            🎯 Filter Tiles: <span id="parallel-selected-count" style="color: #60a5fa; font-weight: 500;"></span>
+                        </button>
+                        <div id="parallel-tile-checkboxes" class="tile-checkboxes"></div>
+                    </div>
+                </div>
+
+                <div id="parallel-plot" style="height: 550px; background: rgba(15,23,42,0.3); border-radius: 8px; overflow: hidden;"></div>
+                <div style="display: flex; justify-content: center; gap: 30px; margin-top: 15px; padding: 12px; background: rgba(30, 41, 59, 0.5); border-radius: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 30px; height: 3px; background: linear-gradient(to right, #ef4444, #f59e0b, #3b82f6, #10b981);"></div>
+                        <span style="font-size: 12px; color: #e2e8f0;">Color by F1 Score (Red=Poor → Green=Excellent)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 20px; height: 3px; background: #facc15; opacity: 0.9;"></div>
+                        <span style="font-size: 12px; color: #e2e8f0;">Highlighted Tile</span>
                     </div>
                 </div>
             </div>
@@ -1026,6 +1226,7 @@
         let stats = null;
         let gridLayout = null;
         let filterThreshold = 0; // F1 score threshold (0-100)
+        let parallelSelectedTiles = new Set(); // Track selected tiles for parallel coordinates
 
         // Get filtered data based on threshold
         function getFilteredData() {
@@ -1431,13 +1632,22 @@
                     [tile.lat + latSpan / 2, tile.lon + lonSpan / 2]
                 ];
 
+                // Highlight if selected
+                const isSelected = selectedTiles.has(tile.tile_id);
+                
                 const rectangle = L.rectangle(bounds, {
-                    color: color,
+                    color: isSelected ? '#facc15' : color,
                     fillColor: color,
                     fillOpacity: 0.6,
-                    weight: 1,
-                    opacity: 0.8
+                    weight: isSelected ? 4 : 1,
+                    opacity: isSelected ? 1 : 0.8
                 }).addTo(map);
+                
+                // Click to select
+                rectangle.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    toggleTileSelection(tile.tile_id, e.originalEvent);
+                });
 
                 // Popup content
                 const popupContent = `
@@ -1512,6 +1722,18 @@
                         const bgColor = getHeatmapColor(value, metricKey);
                         cell.style.backgroundColor = bgColor;
                         cell.textContent = String(tile.tile_id).substring(0, 3);
+                        cell.style.cursor = 'pointer';
+                        
+                        // Highlight if selected
+                        if (selectedTiles.has(tile.tile_id)) {
+                            cell.style.border = '3px solid #facc15';
+                            cell.style.boxShadow = '0 0 10px rgba(250, 204, 21, 0.6)';
+                        }
+
+                        // Click to select
+                        cell.addEventListener('click', (e) => {
+                            toggleTileSelection(tile.tile_id, e);
+                        });
 
                         let tooltip = null;
                         cell.addEventListener('mouseenter', (e) => {
@@ -1560,6 +1782,10 @@
         }
 
         function renderScatter(filteredData = data) {
+            // Remove all existing tooltips (including scatter-specific ones)
+            document.querySelectorAll('[id$="-tooltip"]').forEach(t => t.remove());
+            document.querySelectorAll('[id^="scatter-tooltip-"]').forEach(t => t.remove());
+            
             const plot = document.getElementById('scatter-plot');
             plot.innerHTML = '';
 
@@ -1740,27 +1966,38 @@
 
                 // Get color based on F1 score
                 const color = getF1Color(f1);
+                const isSelected = selectedTiles.has(tile.tile_id);
 
                 const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 circle.setAttribute('cx', cx);
                 circle.setAttribute('cy', cy);
-                circle.setAttribute('r', 6);
+                circle.setAttribute('r', isSelected ? 9 : 6);
                 circle.setAttribute('fill', color);
-                circle.setAttribute('stroke', '#fff');
-                circle.setAttribute('stroke-width', 1.5);
-                circle.setAttribute('opacity', 0.8);
+                circle.setAttribute('stroke', isSelected ? '#facc15' : '#fff');
+                circle.setAttribute('stroke-width', isSelected ? 3 : 1.5);
+                circle.setAttribute('opacity', isSelected ? 1 : 0.8);
                 circle.style.cursor = 'pointer';
                 circle.style.transition = 'all 0.2s';
+                
+                // Click to select
+                circle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleTileSelection(tile.tile_id, e);
+                });
 
                 // Tooltip on hover
-                let tooltip = null;
+                const tooltipId = `scatter-tooltip-${tile.tile_id}`;
                 circle.addEventListener('mouseenter', (e) => {
+                    // Remove any existing tooltips first
+                    document.querySelectorAll('[id^="scatter-tooltip-"]').forEach(t => t.remove());
+                    
                     circle.setAttribute('r', 9);
                     circle.setAttribute('stroke-width', 2.5);
                     circle.setAttribute('opacity', 1);
 
                     // Create tooltip
-                    tooltip = document.createElement('div');
+                    const tooltip = document.createElement('div');
+                    tooltip.id = tooltipId;
                     tooltip.style.position = 'fixed';
                     tooltip.style.left = `${e.clientX + 12}px`;
                     tooltip.style.top = `${e.clientY - 12}px`;
@@ -1784,6 +2021,7 @@
                 });
 
                 circle.addEventListener('mousemove', (e) => {
+                    const tooltip = document.getElementById(tooltipId);
                     if (tooltip) {
                         tooltip.style.left = `${e.clientX + 12}px`;
                         tooltip.style.top = `${e.clientY - 12}px`;
@@ -1795,9 +2033,9 @@
                     circle.setAttribute('stroke-width', 1.5);
                     circle.setAttribute('opacity', 0.8);
 
+                    const tooltip = document.getElementById(tooltipId);
                     if (tooltip) {
-                        document.body.removeChild(tooltip);
-                        tooltip = null;
+                        tooltip.remove();
                     }
                 });
 
@@ -1826,13 +2064,133 @@
                 legendContainer.appendChild(legendItem);
             });
 
-            // Render the geographic map
-            renderScatterMap(filteredData);
+            // Render heatmap on the right side
+            renderScatterHeatmap(filteredData);
         }
 
-        function renderScatterMap(filteredData = data) {
+        function renderScatterHeatmap(filteredData = data) {
+            const container = document.getElementById('scatter-heatmap-container');
+            container.innerHTML = '';
+
+            const metricKey = document.getElementById('metric-select').value;
+            const metricConfig = metricsConfig[metricKey];
+
+            // Get grid dimensions from processed data
+            const cols = gridLayout.cols;
+            const rows = gridLayout.rows;
+            const minX = gridLayout.minX;
+            const minY = gridLayout.minY;
+
+            // Calculate cell size to fit container (smaller than main heatmap)
+            const containerWidth = container.offsetWidth || 500;
+            const cellSize = Math.floor((containerWidth - 30) / cols);
+
+            // Create grid
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = `repeat(${cols}, ${cellSize}px)`;
+            grid.style.gap = '2px';
+            grid.style.justifyContent = 'center';
+
+            // Create a map for quick lookup
+            const tileMap = new Map();
+            data.forEach(tile => {
+                const key = `${tile.xtile},${tile.ytile}`;
+                tileMap.set(key, tile);
+            });
+
+            const filteredIds = new Set(filteredData.map(t => t.tile_id));
+
+            // Create cells
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const xtile = minX + col;
+                    const ytile = minY + row;
+                    const key = `${xtile},${ytile}`;
+                    const tile = tileMap.get(key);
+
+                    const cell = document.createElement('div');
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.borderRadius = '3px';
+                    cell.style.transition = 'all 0.2s';
+
+                    if (tile && filteredIds.has(tile.tile_id)) {
+                        const value = tile[metricKey] || 0;
+                        const color = getHeatmapColor(value, metricKey);
+                        const isSelected = selectedTiles.has(tile.tile_id);
+
+                        cell.style.backgroundColor = color;
+                        cell.style.cursor = 'pointer';
+                        cell.style.border = isSelected ? '3px solid #facc15' : '1px solid rgba(255,255,255,0.1)';
+                        cell.style.boxShadow = isSelected ? '0 0 10px rgba(250, 204, 21, 0.6)' : 'none';
+
+                        // Click to select
+                        cell.addEventListener('click', (e) => {
+                            toggleTileSelection(tile.tile_id, e);
+                        });
+
+                        // Hover effect
+                        cell.addEventListener('mouseenter', () => {
+                            if (!selectedTiles.has(tile.tile_id)) {
+                                cell.style.transform = 'scale(1.1)';
+                                cell.style.boxShadow = '0 4px 8px rgba(0,0,0,0.3)';
+                                cell.style.zIndex = '10';
+                            }
+                        });
+
+                        cell.addEventListener('mouseleave', () => {
+                            if (!selectedTiles.has(tile.tile_id)) {
+                                cell.style.transform = 'scale(1)';
+                                cell.style.boxShadow = 'none';
+                                cell.style.zIndex = '1';
+                            }
+                        });
+
+                        // Tooltip
+                        cell.title = `Tile ${tile.tile_id}\n${metricConfig.label}: ${formatValue(value, metricConfig.isPercentage)}\nPosition: (${tile.xtile}, ${tile.ytile})`;
+                    } else {
+                        cell.style.backgroundColor = 'rgba(71, 85, 105, 0.2)';
+                        cell.style.border = '1px solid rgba(71, 85, 105, 0.3)';
+                    }
+
+                    grid.appendChild(cell);
+                }
+            }
+
+            container.appendChild(grid);
+        }
+
+        function renderScatterMap_UNUSED(filteredData = data) {
             const container = document.getElementById('scatter-map-container');
-            container.innerHTML = ''; // Clear previous map
+            
+            if (!container) {
+                console.error('Scatter map container not found!');
+                return;
+            }
+            
+            console.log('Container found:', container.offsetWidth, 'x', container.offsetHeight);
+            
+            // Remove existing map instance if it exists
+            if (scatterMapInstance) {
+                console.log('Removing old map instance');
+                try {
+                    scatterMapInstance.remove();
+                    scatterMapInstance = null;
+                } catch (e) {
+                    console.warn('Map cleanup error:', e);
+                }
+            }
+            
+            // Clear container and ensure proper dimensions
+            container.innerHTML = '';
+            
+            // Force container to be visible and have dimensions
+            const parentSection = document.getElementById('scatter-section');
+            if (parentSection && parentSection.style.display === 'none') {
+                console.error('Scatter section is hidden!');
+                return;
+            }
 
             // Calculate bounds
             const lats = data.map(t => t.lat);
@@ -1840,81 +2198,499 @@
             const centerLat = (Math.max(...lats) + Math.min(...lats)) / 2;
             const centerLon = (Math.max(...lons) + Math.min(...lons)) / 2;
 
-            // Create map
-            const scatterMap = L.map(container, {
-                zoomControl: true,
-                attributionControl: false
-            }).setView([centerLat, centerLon], 15);
+            // Create map (same as spatial map)
+            console.log('Creating Leaflet map...');
+            try {
+                scatterMapInstance = L.map(container).setView([centerLat, centerLon], 15);
+                console.log('Map created successfully:', scatterMapInstance);
 
-            // Add base map with lower opacity
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                opacity: 0.3
-            }).addTo(scatterMap);
+                // Add tile layer
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                    opacity: 0.4
+                }).addTo(scatterMapInstance);
+                console.log('Tile layer added');
+            } catch (error) {
+                console.error('Error creating map:', error);
+                return;
+            }
 
-            // Helper to get F1 color (same as scatter plot)
-            const getF1Color = (f1) => {
-                if (f1 >= 0.9) return '#10b981'; // Green - Excellent
-                if (f1 >= 0.7) return '#3b82f6'; // Blue - Good
-                if (f1 >= 0.5) return '#f59e0b'; // Orange - Fair
-                return '#ef4444'; // Red - Poor
-            };
-
-            // Calculate tile size
+            // Calculate tile size (same approach as spatial map)
+            const sortedByX = [...data].sort((a, b) => a.xtile - b.xtile);
+            const sortedByY = [...data].sort((a, b) => a.ytile - b.ytile);
             const cols = Math.max(...data.map(d => d.xtile)) - Math.min(...data.map(d => d.xtile)) + 1;
             const rows = Math.max(...data.map(d => d.ytile)) - Math.min(...data.map(d => d.ytile)) + 1;
-            const maxLat = Math.max(...lats);
-            const minLat = Math.min(...lats);
-            const maxLon = Math.max(...lons);
-            const minLon = Math.min(...lons);
-            const lonSpan = (maxLon - minLon) / cols;
-            const latSpan = (maxLat - minLat) / rows;
+            const lonSpan = Math.abs(sortedByX[sortedByX.length - 1].lon - sortedByX[0].lon) / cols;
+            const latSpan = Math.abs(sortedByY[sortedByY.length - 1].lat - sortedByY[0].lat) / rows;
 
             const filteredIds = new Set(filteredData.map(t => t.tile_id));
 
+            // Helper to get F1 color
+            const getF1Color = (f1) => {
+                if (f1 >= 0.9) return '#10b981';
+                if (f1 >= 0.7) return '#3b82f6';
+                if (f1 >= 0.5) return '#f59e0b';
+                return '#ef4444';
+            };
+
             // Draw tiles
             data.forEach(tile => {
-                const tileLat = tile.lat;
-                const tileLon = tile.lon;
-                const bounds = [
-                    [tileLat - latSpan / 2, tileLon - lonSpan / 2],
-                    [tileLat + latSpan / 2, tileLon + lonSpan / 2]
-                ];
-
-                const isFiltered = filteredIds.has(tile.tile_id);
                 const f1 = tile.f1_score || 0;
                 const color = getF1Color(f1);
+                const isFiltered = filteredIds.has(tile.tile_id);
+                const isSelected = selectedTiles.has(tile.tile_id);
+                
+                const bounds = [
+                    [tile.lat - latSpan / 2, tile.lon - lonSpan / 2],
+                    [tile.lat + latSpan / 2, tile.lon + lonSpan / 2]
+                ];
 
                 const rectangle = L.rectangle(bounds, {
-                    color: isFiltered ? color : '#334155',
-                    weight: isFiltered ? 2 : 1,
+                    color: isSelected ? '#facc15' : (isFiltered ? color : '#475569'),
                     fillColor: isFiltered ? color : '#1e293b',
-                    fillOpacity: isFiltered ? 0.7 : 0.15
-                }).addTo(scatterMap);
-
-                if (isFiltered) {
-                    const precision = (tile.precision * 100) || 0;
-                    const recall = (tile.recall * 100) || 0;
-                    
-                    rectangle.bindPopup(`
-                        <div style="font-size: 12px;">
-                            <strong style="color: ${color};">Tile ${tile.tile_id}</strong><br>
-                            F1: ${(f1 * 100).toFixed(1)}%<br>
-                            Precision: ${precision.toFixed(1)}%<br>
-                            Recall: ${recall.toFixed(1)}%<br>
+                    fillOpacity: isFiltered ? 0.6 : 0.2,
+                    weight: isSelected ? 4 : (isFiltered ? 2 : 1),
+                    opacity: isSelected ? 1 : (isFiltered ? 0.8 : 0.4)
+                }).addTo(scatterMapInstance);
+                
+                // Click to select
+                rectangle.on('click', (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    toggleTileSelection(tile.tile_id, e.originalEvent);
+                });
+                
+                // Popup
+                const popupContent = `
+                    <div style="font-family: sans-serif; min-width: 180px;">
+                        <div style="font-weight: bold; font-size: 14px; margin-bottom: 8px; color: ${color};">
+                            Tile ${tile.tile_id}
+                        </div>
+                        <div style="margin-bottom: 6px;">
+                            <strong>F1:</strong> ${formatValue(tile.f1_score, true)}<br>
+                            <strong>Precision:</strong> ${formatValue(tile.precision, true)}<br>
+                            <strong>Recall:</strong> ${formatValue(tile.recall, true)}<br>
+                            <strong>IoU:</strong> ${formatValue(tile.iou, true)}
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
                             Position: (${tile.xtile}, ${tile.ytile})
                         </div>
-                    `);
+                    </div>
+                `;
+                rectangle.bindPopup(popupContent);
+                
+                // Hover effect
+                rectangle.on('mouseover', function() {
+                    if (!isSelected) this.setStyle({ weight: 3, fillOpacity: 0.8 });
+                });
+                rectangle.on('mouseout', function() {
+                    if (!isSelected) this.setStyle({ weight: isFiltered ? 2 : 1, fillOpacity: isFiltered ? 0.6 : 0.2 });
+                });
+            });
+        }
+
+        // Parallel Coordinates Functions
+        function toggleParallelTileDropdown() {
+            const dropdown = document.getElementById('parallel-tile-checkboxes');
+            const btn = document.querySelector('.tile-filter-dropdown-btn');
+            dropdown.classList.toggle('open');
+            btn.classList.toggle('open');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const container = document.querySelector('.tile-filter-container');
+            if (container && !container.contains(e.target)) {
+                const dropdown = document.getElementById('parallel-tile-checkboxes');
+                const btn = document.querySelector('.tile-filter-dropdown-btn');
+                if (dropdown) dropdown.classList.remove('open');
+                if (btn) btn.classList.remove('open');
+            }
+        });
+
+        function initializeParallelTileFilter(filteredData) {
+            const container = document.getElementById('parallel-tile-checkboxes');
+            container.innerHTML = '';
+
+            // Initialize selection with all tiles by default (only on first render)
+            const currentTileIds = new Set(filteredData.map(t => `${t.xtile}_${t.ytile}`));
+            
+            if (parallelSelectedTiles.size === 0) {
+                // First time - select all
+                filteredData.forEach(tile => {
+                    const tileId = `${tile.xtile}_${tile.ytile}`;
+                    parallelSelectedTiles.add(tileId);
+                });
+            } else {
+                // Remove tiles no longer in filtered data
+                parallelSelectedTiles.forEach(tileId => {
+                    if (!currentTileIds.has(tileId)) {
+                        parallelSelectedTiles.delete(tileId);
+                    }
+                });
+                // DON'T auto-add new tiles - preserve user's selection state
+            }
+
+            // Create search input container
+            const searchContainer = document.createElement('div');
+            searchContainer.className = 'tile-search-container';
+
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.className = 'tile-search-input';
+            searchInput.placeholder = 'Search by tile ID or coordinates...';
+            searchInput.id = 'parallel-tile-search';
+            searchContainer.appendChild(searchInput);
+            container.appendChild(searchContainer);
+
+            // Create "Select All" checkbox
+            const selectAllItem = document.createElement('div');
+            selectAllItem.className = 'tile-checkbox-item select-all';
+
+            const selectAllCheckbox = document.createElement('input');
+            selectAllCheckbox.type = 'checkbox';
+            selectAllCheckbox.id = 'parallel-select-all';
+            selectAllCheckbox.checked = parallelSelectedTiles.size === filteredData.length;
+            selectAllCheckbox.onchange = () => {
+                if (selectAllCheckbox.checked) {
+                    filteredData.forEach(tile => {
+                        const tileId = `${tile.xtile}_${tile.ytile}`;
+                        parallelSelectedTiles.add(tileId);
+                        const checkbox = document.getElementById(`parallel-tile-${tileId}`);
+                        if (checkbox) checkbox.checked = true;
+                    });
+                } else {
+                    parallelSelectedTiles.clear();
+                    const checkboxes = document.querySelectorAll('[id^="parallel-tile-"]');
+                    checkboxes.forEach(cb => cb.checked = false);
+                }
+                updateParallelSelectedCount();
+                renderParallelCoordinates(filteredData);
+            };
+
+            const selectAllLabel = document.createElement('label');
+            selectAllLabel.htmlFor = 'parallel-select-all';
+            selectAllLabel.textContent = 'Select All';
+
+            selectAllItem.appendChild(selectAllCheckbox);
+            selectAllItem.appendChild(selectAllLabel);
+            container.appendChild(selectAllItem);
+
+            // Create container for scrollable items
+            const scrollableContainer = document.createElement('div');
+            scrollableContainer.id = 'parallel-tile-items';
+            container.appendChild(scrollableContainer);
+
+            // Create individual tile checkboxes
+            filteredData.forEach(tile => {
+                const tileId = `${tile.xtile}_${tile.ytile}`;
+                const isChecked = parallelSelectedTiles.has(tileId);
+
+                const item = document.createElement('div');
+                item.className = 'tile-checkbox-item';
+                item.dataset.tileId = tile.tile_id;
+                item.dataset.coords = `${tile.xtile},${tile.ytile}`;
+                item.dataset.searchText = `${tile.tile_id} ${tile.xtile} ${tile.ytile}`;
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `parallel-tile-${tileId}`;
+                checkbox.checked = isChecked;
+                checkbox.onchange = () => {
+                    if (checkbox.checked) {
+                        parallelSelectedTiles.add(tileId);
+                    } else {
+                        parallelSelectedTiles.delete(tileId);
+                    }
+                    const selectAllCb = document.getElementById('parallel-select-all');
+                    if (selectAllCb) {
+                        const visibleItems = Array.from(scrollableContainer.querySelectorAll('.tile-checkbox-item[style*="display: flex"], .tile-checkbox-item:not([style*="display: none"])'));
+                        selectAllCb.checked = visibleItems.length > 0 && visibleItems.every(item => {
+                            const cb = item.querySelector('input[type="checkbox"]');
+                            return cb && cb.checked;
+                        });
+                    }
+                    updateParallelSelectedCount();
+                    renderParallelCoordinates(filteredData);
+                };
+
+                const label = document.createElement('label');
+                label.htmlFor = `parallel-tile-${tileId}`;
+                label.innerHTML = `<span style="color: #60a5fa; font-weight: 600;">#${tile.tile_id}</span> <span style="color: #94a3b8;">(${tile.xtile}, ${tile.ytile})</span>`;
+
+                item.appendChild(checkbox);
+                item.appendChild(label);
+                scrollableContainer.appendChild(item);
+            });
+
+            // Add search functionality
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase().trim();
+                const items = scrollableContainer.querySelectorAll('.tile-checkbox-item');
+                
+                items.forEach(item => {
+                    const searchText = item.dataset.searchText.toLowerCase();
+                    if (searchTerm === '' || searchText.includes(searchTerm)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+
+            updateParallelSelectedCount();
+        }
+
+        function updateParallelSelectedCount() {
+            const countElem = document.getElementById('parallel-selected-count');
+            const filtered = getFilteredData();
+            countElem.textContent = `${parallelSelectedTiles.size}/${filtered.length}`;
+        }
+
+        function renderParallelCoordinates(filteredData = data) {
+            const container = document.getElementById('parallel-plot');
+            
+            // Initialize tile filter only if not already initialized
+            const checkboxContainer = document.getElementById('parallel-tile-checkboxes');
+            if (checkboxContainer && checkboxContainer.children.length === 0) {
+                initializeParallelTileFilter(filteredData);
+            } else {
+                // Just update the count and checkboxes state without re-creating them
+                updateParallelSelectedCount();
+            }
+
+            container.innerHTML = '';
+
+            // Filter by selected tiles
+            const displayData = filteredData.filter(tile => {
+                const tileId = `${tile.xtile}_${tile.ytile}`;
+                return parallelSelectedTiles.has(tileId);
+            });
+
+            if (displayData.length === 0) {
+                container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #94a3b8;">No tiles selected. Click "Filter Tiles" to select tiles.</div>';
+                return;
+            }
+
+            // Define metrics/dimensions
+            const dimensions = [
+                { key: 'f1_score', label: 'F1 Score', range: [0, 1] },
+                { key: 'precision', label: 'Precision', range: [0, 1] },
+                { key: 'recall', label: 'Recall', range: [0, 1] },
+                { key: 'iou', label: 'IoU', range: [0, 1] },
+                { key: 'tp_length_m', label: 'TP (m)', range: null },
+                { key: 'fp_length_m', label: 'FP (m)', range: null },
+                { key: 'fn_length_m', label: 'FN (m)', range: null }
+            ];
+
+            // Calculate auto ranges for length metrics
+            dimensions.forEach(dim => {
+                if (!dim.range) {
+                    const values = displayData.map(d => d[dim.key] || 0);
+                    dim.range = [Math.min(...values), Math.max(...values)];
                 }
             });
 
-            // Fit bounds to filtered tiles
-            if (filteredData.length > 0) {
-                const bounds = filteredData.map(t => [
-                    [t.lat - latSpan / 2, t.lon - lonSpan / 2],
-                    [t.lat + latSpan / 2, t.lon + lonSpan / 2]
-                ]).flat();
-                scatterMap.fitBounds(bounds, { padding: [30, 30] });
-            }
+            // SVG setup
+            const width = container.clientWidth || 1200;
+            const height = 550;
+            const margin = { top: 40, right: 60, bottom: 40, left: 60 };
+            const plotWidth = width - margin.left - margin.right;
+            const plotHeight = height - margin.top - margin.bottom;
+
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.style.display = 'block';
+            container.appendChild(svg);
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.setAttribute('transform', `translate(${margin.left},${margin.top})`);
+            svg.appendChild(g);
+
+            // Calculate axis positions
+            const axisSpacing = plotWidth / (dimensions.length - 1);
+            const xPositions = dimensions.map((d, i) => i * axisSpacing);
+
+            // Create scale functions
+            const scales = dimensions.map(dim => {
+                const [min, max] = dim.range;
+                return (value) => {
+                    const normalized = (value - min) / (max - min || 1);
+                    return plotHeight - (normalized * plotHeight);
+                };
+            });
+
+            // Color scale
+            const getLineColor = (f1) => {
+                if (f1 >= 0.9) return '#10b981';
+                if (f1 >= 0.7) return '#3b82f6';
+                if (f1 >= 0.5) return '#f59e0b';
+                return '#ef4444';
+            };
+
+            // Draw axes
+            dimensions.forEach((dim, i) => {
+                const x = xPositions[i];
+
+                // Axis line
+                const axisLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                axisLine.setAttribute('x1', x);
+                axisLine.setAttribute('y1', 0);
+                axisLine.setAttribute('x2', x);
+                axisLine.setAttribute('y2', plotHeight);
+                axisLine.setAttribute('stroke', '#64748b');
+                axisLine.setAttribute('stroke-width', 2);
+                axisLine.classList.add('parallel-axis');
+                g.appendChild(axisLine);
+
+                // Axis label
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', x);
+                label.setAttribute('y', -15);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', '#e2e8f0');
+                label.setAttribute('font-size', '13px');
+                label.setAttribute('font-weight', '600');
+                label.textContent = dim.label;
+                g.appendChild(label);
+
+                // Tick marks
+                const numTicks = 5;
+                for (let j = 0; j <= numTicks; j++) {
+                    const t = j / numTicks;
+                    const y = plotHeight - (t * plotHeight);
+                    const value = dim.range[0] + t * (dim.range[1] - dim.range[0]);
+
+                    // Tick mark
+                    const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    tick.setAttribute('x1', x - 5);
+                    tick.setAttribute('y1', y);
+                    tick.setAttribute('x2', x + 5);
+                    tick.setAttribute('y2', y);
+                    tick.setAttribute('stroke', '#94a3b8');
+                    tick.setAttribute('stroke-width', 1);
+                    g.appendChild(tick);
+
+                    // Tick label
+                    const tickLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    tickLabel.setAttribute('x', x + (i === 0 ? -12 : i === dimensions.length - 1 ? 12 : 0));
+                    tickLabel.setAttribute('y', y);
+                    tickLabel.setAttribute('text-anchor', i === 0 ? 'end' : i === dimensions.length - 1 ? 'start' : 'middle');
+                    tickLabel.setAttribute('dominant-baseline', 'middle');
+                    tickLabel.setAttribute('fill', '#94a3b8');
+                    tickLabel.setAttribute('font-size', '10px');
+                    tickLabel.textContent = value.toFixed(value < 10 ? 2 : 0);
+                    g.appendChild(tickLabel);
+                }
+            });
+
+            // Draw polylines
+            const lines = [];
+            displayData.forEach(tile => {
+                const f1 = tile.f1_score || 0;
+                const color = getLineColor(f1);
+
+                let pathData = '';
+                dimensions.forEach((dim, i) => {
+                    const x = xPositions[i];
+                    const value = tile[dim.key] || 0;
+                    const y = scales[i](value);
+                    pathData += (i === 0 ? 'M' : 'L') + x + ',' + y;
+                });
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', pathData);
+                path.setAttribute('stroke', color);
+                path.classList.add('parallel-line');
+                path.dataset.tileId = tile.tile_id;
+                path.dataset.xtile = tile.xtile;
+                path.dataset.ytile = tile.ytile;
+                path.style.cursor = 'pointer';
+                
+                // Highlight if selected
+                const isSelected = selectedTiles.has(tile.tile_id);
+                if (isSelected) {
+                    path.classList.add('highlighted');
+                    path.setAttribute('stroke', '#facc15');
+                    path.setAttribute('stroke-width', '3');
+                }
+
+                // Click to select
+                path.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleTileSelection(tile.tile_id, e);
+                });
+
+                // Hover events
+                path.addEventListener('mouseenter', () => {
+                    if (!isSelected) {
+                        lines.forEach(l => {
+                            if (!selectedTiles.has(parseInt(l.dataset.tileId))) {
+                                l.classList.add('dimmed');
+                            }
+                        });
+                        path.classList.remove('dimmed');
+                        path.classList.add('highlighted');
+                    }
+                });
+
+                path.addEventListener('mouseleave', () => {
+                    if (!isSelected) {
+                        lines.forEach(l => {
+                            l.classList.remove('dimmed');
+                            if (!selectedTiles.has(parseInt(l.dataset.tileId))) {
+                                l.classList.remove('highlighted');
+                            }
+                        });
+                    }
+                });
+
+                path.addEventListener('mousemove', (e) => {
+                    const rect = svg.getBoundingClientRect();
+                    const tooltipX = e.clientX - rect.left + 10;
+                    const tooltipY = e.clientY - rect.top - 10;
+
+                    let tooltip = document.getElementById('parallel-tooltip');
+                    if (!tooltip) {
+                        tooltip = document.createElement('div');
+                        tooltip.id = 'parallel-tooltip';
+                        tooltip.style.position = 'absolute';
+                        tooltip.style.background = 'rgba(15, 23, 42, 0.95)';
+                        tooltip.style.color = '#e2e8f0';
+                        tooltip.style.padding = '8px 12px';
+                        tooltip.style.borderRadius = '6px';
+                        tooltip.style.fontSize = '12px';
+                        tooltip.style.pointerEvents = 'none';
+                        tooltip.style.zIndex = '1000';
+                        tooltip.style.border = '1px solid rgba(59, 130, 246, 0.3)';
+                        container.appendChild(tooltip);
+                    }
+
+                    tooltip.style.left = tooltipX + 'px';
+                    tooltip.style.top = tooltipY + 'px';
+                    tooltip.style.display = 'block';
+                    tooltip.innerHTML = `
+                        <div style="font-weight: 600; margin-bottom: 4px; color: ${color};">Tile (${tile.xtile}, ${tile.ytile})</div>
+                        <div>F1: ${(f1 * 100).toFixed(1)}%</div>
+                        <div>Precision: ${((tile.precision || 0) * 100).toFixed(1)}%</div>
+                        <div>Recall: ${((tile.recall || 0) * 100).toFixed(1)}%</div>
+                        <div>IoU: ${((tile.iou || 0) * 100).toFixed(1)}%</div>
+                        <div>TP: ${(tile.tp_length_m || 0).toFixed(1)}m</div>
+                        <div>FP: ${(tile.fp_length_m || 0).toFixed(1)}m</div>
+                        <div>FN: ${(tile.fn_length_m || 0).toFixed(1)}m</div>
+                    `;
+                });
+
+                g.appendChild(path);
+                lines.push(path);
+            });
+
+            // Remove tooltip on mouse leave from container
+            container.addEventListener('mouseleave', () => {
+                const tooltip = document.getElementById('parallel-tooltip');
+                if (tooltip) tooltip.style.display = 'none';
+            });
         }
 
         function computeQuartiles(values) {
@@ -2831,6 +3607,14 @@
 
             sorted.forEach((tile, idx) => {
                 const row = document.createElement('tr');
+                const isSelected = selectedTiles.has(tile.tile_id);
+                
+                row.style.cursor = 'pointer';
+                if (isSelected) {
+                    row.style.background = 'rgba(250, 204, 21, 0.2)';
+                    row.style.borderLeft = '4px solid #facc15';
+                }
+                
                 row.innerHTML = `
                     <td>${tile.tile_id}</td>
                     <td>${tile.xtile}, ${tile.ytile}</td>
@@ -2844,6 +3628,11 @@
                     <td><span class="metric-fp">${formatValue(tile.fp_length_m, false)}</span></td>
                     <td><span class="metric-fn">${formatValue(tile.fn_length_m, false)}</span></td>
                 `;
+                
+                row.addEventListener('click', (e) => {
+                    toggleTileSelection(tile.tile_id, e);
+                });
+                
                 tbody.appendChild(row);
             });
         }
@@ -2855,8 +3644,26 @@
         }
 
         let spatialMode = 'map'; // Track current spatial view mode
+        let selectedTiles = new Set(); // Track selected tiles across all views
+
+        function clearSelection() {
+            selectedTiles.clear();
+            render(); // Re-render to remove highlights
+        }
+
+        function toggleTileSelection(tileId) {
+            if (selectedTiles.has(tileId)) {
+                selectedTiles.delete(tileId);
+            } else {
+                selectedTiles.add(tileId);
+            }
+            render(); // Re-render to update highlights across all views
+        }
 
         function render() {
+            // Clean up all tooltips before rendering
+            document.querySelectorAll('[id$="-tooltip"]').forEach(t => t.remove());
+            
             const viewMode = document.getElementById('view-mode').value;
             const filterThreshold = parseFloat(document.getElementById('filter-threshold').value);
             
@@ -2871,6 +3678,7 @@
             
             document.getElementById('spatial-section').style.display = viewMode === 'spatial' ? 'block' : 'none';
             document.getElementById('scatter-section').style.display = viewMode === 'scatter' ? 'block' : 'none';
+            document.getElementById('parallel-section').style.display = viewMode === 'parallel' ? 'block' : 'none';
             document.getElementById('statistical-section').style.display = viewMode === 'statistical' ? 'block' : 'none';
             document.getElementById('erroranalysis-section').style.display = viewMode === 'erroranalysis' ? 'block' : 'none';
             document.getElementById('table-section').style.display = viewMode === 'table' ? 'block' : 'none';
@@ -2888,6 +3696,8 @@
                 }
             } else if (viewMode === 'scatter') {
                 renderScatter(filteredData);
+            } else if (viewMode === 'parallel') {
+                setTimeout(() => renderParallelCoordinates(filteredData), 100);
             } else if (viewMode === 'statistical') {
                 renderDistributions(filteredData);
                 renderCorrelation(filteredData);
