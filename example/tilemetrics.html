@@ -1566,11 +1566,14 @@
         
         /* App Shell */
         .app-shell {
-            display: grid;
-            grid-template-columns: 260px 1fr;
+            display: block;
             min-height: 100vh;
+            max-width: 100vw;
+            width: 100%;
             position: relative;
             z-index: 10;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
         /* Sidebar */
@@ -1582,11 +1585,34 @@
             display: flex;
             flex-direction: column;
             gap: var(--space-xl);
-            position: sticky;
+            position: fixed;
+            left: 0;
             top: 0;
+            width: 260px;
             height: 100vh;
+            max-height: 100vh;
             overflow-y: auto;
+            overflow-x: hidden;
             z-index: 100;
+            scrollbar-width: thin;
+            scrollbar-color: var(--color-indigo-500) transparent;
+        }
+        
+        .app-sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .app-sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .app-sidebar::-webkit-scrollbar-thumb {
+            background: var(--color-indigo-500);
+            border-radius: 3px;
+        }
+        
+        .app-sidebar::-webkit-scrollbar-thumb:hover {
+            background: var(--color-indigo-400);
         }
 
         .sidebar-header {
@@ -1753,8 +1779,11 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            margin-left: 260px;
+            width: calc(100% - 260px);
             position: relative;
             z-index: 1;
+            overflow-x: hidden;
         }
 
         /* Top Bar */
@@ -1871,6 +1900,9 @@
         .app-content {
             flex: 1;
             padding: var(--space-xl) var(--space-2xl);
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
         /* Dashboard Grid */
@@ -1878,6 +1910,8 @@
             display: flex;
             flex-direction: column;
             gap: var(--space-xl);
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
         .grid-row {
@@ -2219,13 +2253,13 @@
             </div>
                         </div>
 
-                            <div id="statistical-section" style="display: none;">
+                            <div id="statistical-section" style="display: none; max-width: 100%; overflow-x: auto;">
                                 <h3 class="vis-title">Statistical Analysis</h3>
                                 
                                 <!-- Distributions -->
                                 <div style="margin-bottom: 40px;">
                                     <h4 style="font-size: 16px; font-weight: 600; color: #cbd5e1; margin: 20px 0 15px 20px;">Metric Distributions</h4>
-                                    <div id="distributions-container" style="padding: 0 20px 20px 20px;">
+                                    <div id="distributions-container" style="padding: 0 20px 20px 20px; max-width: 100%; overflow-x: auto;">
                                         <!-- Will be populated by renderDistributions() -->
                                     </div>
                                 </div>
@@ -2233,7 +2267,7 @@
                                 <!-- Correlation Heatmap -->
                                 <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 30px;">
                                     <h4 style="font-size: 16px; font-weight: 600; color: #cbd5e1; margin: 0 0 15px 0; text-align: center;">Metric Correlation Heatmap</h4>
-                                    <div id="correlation-container" style="padding: 0 20px 20px 20px;">
+                                    <div id="correlation-container" style="padding: 0 20px 20px 20px; max-width: 100%; overflow-x: auto;">
                                         <!-- Will be populated by renderCorrelation() -->
                                     </div>
                                 </div>
@@ -4098,7 +4132,8 @@
             container.innerHTML = '';
 
             const metrics = ['f1_score', 'precision', 'recall', 'iou'];
-            const width = 1100;
+            const containerWidth = container.clientWidth || 800;
+            const width = Math.min(containerWidth, 1100);
             const height = 100;
             const margin = { top: 10, right: 200, bottom: 40, left: 150 };
             const plotWidth = width - margin.left - margin.right;
