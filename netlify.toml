@@ -2,6 +2,18 @@
   publish = "."
   command = ""
 
+# Redirect root to visualization page
+[[redirects]]
+  from = "/"
+  to = "/visualization/index.html"
+  status = 301
+
+# SPA fallback for visualization
+[[redirects]]
+  from = "/visualization/*"
+  to = "/visualization/index.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
