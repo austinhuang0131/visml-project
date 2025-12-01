@@ -2022,7 +2022,6 @@
             <div class="sidebar-section-label">Dataset</div>
             <div class="sidebar-filter-section" style="margin-bottom: 1.5rem;">
                 <select id="dataset-selector" class="sidebar-select" style="width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid var(--border-primary); background: var(--bg-card); color: var(--text-primary); font-size: var(--text-sm);">
-                    <option value="example">Example (Boston Common Area)</option>
                     <option value="boston_common">Boston Common</option>
                     <option value="times_square">Times Square</option>
                 </select>
@@ -2513,12 +2512,6 @@
 
         // Dataset configuration
         const datasetConfig = {
-            'example': {
-                name: 'Example (Boston Common Area)',
-                dataPath: '../polygon_analysis_output',
-                tilesPath: '../example/tiles/static/ma/256_19',
-                imageExtension: 'jpg'
-            },
             'boston_common': {
                 name: 'Boston Common',
                 dataPath: '../boston_common_output',
@@ -2533,12 +2526,12 @@
             }
         };
 
-        // Get dataset from URL parameter or default to 'example'
+        // Get dataset from URL parameter or default to 'boston_common'
         const urlParams = new URLSearchParams(window.location.search);
-        let currentDataset = urlParams.get('sample') || 'example';
+        let currentDataset = urlParams.get('sample') || 'boston_common';
         if (!datasetConfig[currentDataset]) {
-            console.warn(`Invalid dataset '${currentDataset}', falling back to 'example'`);
-            currentDataset = 'example';
+            console.warn(`Invalid dataset '${currentDataset}', falling back to 'boston_common'.`);
+            currentDataset = 'boston_common';
         }
 
         // Metrics config

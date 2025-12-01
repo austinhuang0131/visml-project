@@ -1,6 +1,6 @@
 // Global state management
 const state = {
-    currentSample: 'example',
+    currentSample: 'boston_common',
     currentView: 'confusion',
     currentBaseMap: 'satellite',
     currentHeatmapMetric: 'f1_score',
