@@ -1,0 +1,23 @@
+{
+  "method": "polygon_based_segmented",
+  "buffer_distance_m": 3,
+  "polygon_count": 90,
+  "polygon_area_sqm": 79535.09,
+  "tp_length_m": 6485.23,
+  "fp_length_m": 305.87,
+  "fn_length_m": 1151.42,
+  "tp_count": 365,
+  "fp_count": 24,
+  "fn_count": 1255,
+  "ml_total_length_m": 6791.1,
+  "ml_in_polygon_length_m": 6791.1,
+  "osm_total_length_m": 8787.01,
+  "osm_in_polygon_length_m": 7635.59,
+  "osm_outside_polygon_length_m": 1151.42,
+  "osm_inside_parts_count": 7827,
+  "osm_outside_parts_count": 1255,
+  "precision": 0.955,
+  "recall": 0.8492,
+  "f1_score": 0.899,
+  "iou": 0.8165
+}
