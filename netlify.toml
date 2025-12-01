@@ -1,0 +1,13 @@
+[[redirects]]
+  from = "/*"
+  to = "/visualization/index.html"
+  status = 200
+  force = false
+  
+[build]
+  publish = "."
+  
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
