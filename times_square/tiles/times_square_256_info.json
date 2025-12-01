@@ -1,0 +1,42 @@
+{
+    "name": "times_square",
+    "bbox": [
+        40.7550595058,
+        40.7592204877,
+        -73.9874267578,
+        -73.9819335938
+    ],
+    "location": [
+        40.7558313,
+        -73.9870666,
+        40.7591362,
+        -73.9845108
+    ],
+    "size": 1024,
+    "zoom": 19,
+    "crs": 4326,
+    "tile_step": 4,
+    "project": {
+        "config": "/content/tile2net/src/tile2net/tileseg/config.py",
+        "assets": {
+            "weights": {
+                "satellite_2021": "/content/tile2net/src/tile2net/raster/resources/assets/weights/satellite_2021.pth",
+                "hrnetv2_w48_imagenet_pretrained": "/content/tile2net/src/tile2net/raster/resources/assets/weights/hrnetv2_w48_imagenet_pretrained.pth"
+            }
+        },
+        "segmentation": "content/output/times_square/segmentation/times_square/256_19_4",
+        "tiles": {
+            "info": "content/output/times_square/tiles/times_square_256_info.json",
+            "static": "content/output/times_square/tiles/static/nyc/256_19",
+            "stitched": "content/output/times_square/tiles/stitched/256_19_4"
+        },
+        "polygons": "content/output/times_square/polygons",
+        "network": "content/output/times_square/network",
+        "name": "times_square"
+    },
+    "debug": false,
+    "output_dir": "content/output",
+    "source": "nyc",
+    "year": 2024,
+    "server": "https://tiles.arcgis.com/tiles/yG5s3afENB5iO9fj/arcgis/rest/services/NYC_Orthos_2024/MapServer"
+}
