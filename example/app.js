@@ -1,460 +1,864 @@
-// Configuration from the example_256_info.json
-const config = {
-    bbox: [42.3519474764, 42.3560069067, -71.0719299316, -71.0636901855],
-    center: [42.3539772, -71.0678100],
-    zoom: 19,
-    tileZoom: 19,
-    tilesPath: 'tiles-new/static/ma/256_19/',
-    networkPath: 'network-new/example-Network-30-11-2025_04_17/example-Network-30-11-2025_04_17',
-    polygonsPath: 'polygons-new/example-Polygons-30-11-2025_04_16/example-Polygons-30-11-2025_04_16',
-    tileInfo: 'tiles-new/example_256_info.csv'
+// Global state management
+const state = {
+    currentSample: 'boston_common',
+    currentView: 'confusion',
+    currentBaseMap: 'satellite',
+    currentHeatmapMetric: 'f1_score',
+    map: null,
+    baseLayers: {},
+    confusionLayers: {},
+    tileHeatmapLayer: null,
+    perTileData: null,
+    globalData: null,
+    tileImageOverlays: [],
+    layerControl: null,
+    tileImageExtension: 'jpg' // Detected dynamically per sample
 };
 
-// Initialize the map
-const map = L.map('map', {
-    center: config.center,
-    zoom: 16,  // Start more zoomed out for better context
-    maxZoom: 20,
-    minZoom: 14  // Allow zooming out further
-});
-
-// Add a simple basemap (OSM) for context - shows surrounding area
-const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    opacity: 0.5  // Semi-transparent to see both basemap and aerial tiles
-}).addTo(map);
-
-// Layer groups for organization
-const layers = {
-    tiles: L.layerGroup().addTo(map),
-    network: L.layerGroup().addTo(map),
-    polygons: L.layerGroup().addTo(map),
-    overpass: L.layerGroup().addTo(map)
+// Sample-specific configuration
+const sampleConfig = {
+    'boston_common': {
+        tilePath: '../boston_common/tiles/static/ma/256_19',
+        imageExtension: 'jpg'
+    },
+    'times_square': {
+        tilePath: '../times_square/tiles/static/nyc/256_19',
+        imageExtension: 'png'
+    }
 };
 
-// Status tracking
-let loadStatus = {
-    tiles: false,
-    network: false,
-    polygons: false,
-    overpass: false
-};
+// Tile coordinate to lat/lon conversion (Web Mercator)
+function tile2lon(x, z) {
+    return (x / Math.pow(2, z) * 360 - 180);
+}
 
-// Update status display
-function updateStatus() {
-    const statusEl = document.getElementById('layer-status');
-    const total = Object.keys(loadStatus).length;
-    const loaded = Object.values(loadStatus).filter(v => v).length;
+function tile2lat(y, z) {
+    const n = Math.PI - 2 * Math.PI * y / Math.pow(2, z);
+    return (180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n))));
+}
+
+// Initialize the application
+async function init() {
+    initializeMap();
+    setupEventListeners();
+    await loadData();
+}
+
+// Initialize Leaflet map
+function initializeMap() {
+    state.map = L.map('map', {
+        center: [42.3601, -71.0589],
+        zoom: 17,
+        zoomControl: true
+    });
     
-    if (loaded === total) {
-        statusEl.innerHTML = '<span style="color: green;">✓ All layers loaded</span>';
-    } else {
-        statusEl.innerHTML = `Loading: ${loaded}/${total} layers`;
+    // Create base layers
+    state.baseLayers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    });
+    
+    // OSM layer will be default until satellite images are loaded
+    state.baseLayers.osm.addTo(state.map);
+}
+
+// Setup event listeners
+function setupEventListeners() {
+    document.getElementById('sampleSelect').addEventListener('change', async (e) => {
+        state.currentSample = e.target.value;
+        await loadData();
+    });
+    
+    document.getElementById('baseMapSelect').addEventListener('change', (e) => {
+        state.currentBaseMap = e.target.value;
+        switchBaseMap();
+    });
+    
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+        await loadData();
+    });
+    
+    document.getElementById('confusionViewBtn').addEventListener('click', () => {
+        switchMapView('confusion');
+    });
+    
+    document.getElementById('heatmapViewBtn').addEventListener('click', () => {
+        switchMapView('heatmap');
+    });
+    
+    document.getElementById('heatmapMetricSelect').addEventListener('change', (e) => {
+        state.currentHeatmapMetric = e.target.value;
+        if (state.currentView === 'heatmap') {
+            renderTileHeatmap();
+        }
+    });
+    
+    document.getElementById('scatterXSelect').addEventListener('change', () => {
+        renderScatterPlot();
+    });
+    
+    document.getElementById('scatterYSelect').addEventListener('change', () => {
+        renderScatterPlot();
+    });
+}
+
+// Load data for current sample
+async function loadData() {
+    try {
+        const sample = state.currentSample;
+        
+        // Show loading state
+        document.getElementById('statsGrid').innerHTML = '<div class="loading">Loading data...</div>';
+        
+        // Load global metrics
+        const globalResponse = await fetch(`../${sample}_output/confusion_matrix_global_polygon_based.json`);
+        state.globalData = await globalResponse.json();
+        
+        // Load per-tile metrics
+        const perTileResponse = await fetch(`../${sample}_output/confusion_matrix_per_tile_polygon_based.json`);
+        state.perTileData = await perTileResponse.json();
+        
+        // Load GeoJSON files
+        const [tpData, fpData, fnData, mlPolygonsData, osmData] = await Promise.all([
+            fetch(`../${sample}_output/true_positives_polygon_based.geojson`).then(r => r.json()),
+            fetch(`../${sample}_output/false_positives_polygon_based.geojson`).then(r => r.json()),
+            fetch(`../${sample}_output/false_negatives_polygon_based.geojson`).then(r => r.json()),
+            fetch(`../${sample}_output/ml_polygons.geojson`).then(r => r.json()),
+            fetch(`../${sample}_output/osm_ground_truth.geojson`).then(r => r.json())
+        ]);
+        
+        // Store GeoJSON data
+        state.geojsonData = {
+            tp: tpData,
+            fp: fpData,
+            fn: fnData,
+            mlPolygons: mlPolygonsData,
+            osm: osmData
+        };
+        
+        // Update UI
+        renderGlobalStats();
+        await loadSatelliteImagery();
+        
+        // Render based on current view
+        if (state.currentView === 'confusion') {
+            renderConfusionLayers();
+        } else {
+            renderTileHeatmap();
+        }
+        
+        renderScatterPlot();
+        
+        // Fit map to data bounds
+        fitMapToBounds();
+        
+    } catch (error) {
+        console.error('Error loading data:', error);
+        document.getElementById('statsGrid').innerHTML = 
+            '<div class="loading" style="color: #e74c3c;">Error loading data. Please check console for details.</div>';
     }
 }
 
-// Function to load aerial imagery tiles as image overlays
-async function loadTiles() {
-    try {
-        const response = await fetch(config.tileInfo);
-        const text = await response.text();
-        const lines = text.split('\n').slice(1); // Skip header
+// Load satellite imagery tiles
+async function loadSatelliteImagery() {
+    const sample = state.currentSample;
+    
+    // Get configuration for this sample
+    const config = sampleConfig[sample];
+    if (!config) {
+        console.error(`No configuration found for sample: ${sample}`);
+        return;
+    }
+    
+    const tilePath = config.tilePath;
+    state.tileImageExtension = config.imageExtension;
+    
+    // Remove existing satellite layer if present
+    if (state.baseLayers.satellite) {
+        state.map.removeLayer(state.baseLayers.satellite);
+        state.tileImageOverlays.forEach(overlay => state.map.removeLayer(overlay));
+        state.tileImageOverlays = [];
+    }
+    
+    // Create layer group for satellite tiles
+    state.baseLayers.satellite = L.layerGroup();
+    
+    // Load each tile as an image overlay
+    for (const tile of state.perTileData) {
+        const xtile = tile.xtile;
+        const ytile = tile.ytile;
+        const zoom = 19;
         
-        let tileCount = 0;
+        // Calculate bounds for this tile
+        const topLeftLat = tile2lat(ytile, zoom);
+        const topLeftLon = tile2lon(xtile, zoom);
+        const bottomRightLat = tile2lat(ytile + 1, zoom);
+        const bottomRightLon = tile2lon(xtile + 1, zoom);
         
-        lines.forEach(line => {
-            if (!line.trim()) return;
+        const bounds = [
+            [bottomRightLat, topLeftLon],
+            [topLeftLat, bottomRightLon]
+        ];
+        
+        const imageUrl = `${tilePath}/${xtile}_${ytile}.${state.tileImageExtension}`;
+        
+        const overlay = L.imageOverlay(imageUrl, bounds, {
+            opacity: 1.0,
+            interactive: false
+        });
+        
+        state.tileImageOverlays.push(overlay);
+        state.baseLayers.satellite.addLayer(overlay);
+    }
+    
+    // Switch to satellite if that's the current selection
+    if (state.currentBaseMap === 'satellite') {
+        switchBaseMap();
+    }
+}
+
+// Switch between base maps
+function switchBaseMap() {
+    // Remove all base layers
+    Object.values(state.baseLayers).forEach(layer => {
+        if (state.map.hasLayer(layer)) {
+            state.map.removeLayer(layer);
+        }
+    });
+    
+    // Add selected base layer
+    if (state.currentBaseMap === 'satellite' && state.baseLayers.satellite) {
+        state.baseLayers.satellite.addTo(state.map);
+    } else {
+        state.baseLayers.osm.addTo(state.map);
+    }
+}
+
+// Switch between map views
+function switchMapView(view) {
+    state.currentView = view;
+    
+    // Update button states
+    document.getElementById('confusionViewBtn').classList.toggle('active', view === 'confusion');
+    document.getElementById('heatmapViewBtn').classList.toggle('active', view === 'heatmap');
+    
+    // Show/hide metric selector for heatmap
+    document.getElementById('heatmapMetricSelect').style.display = 
+        view === 'heatmap' ? 'block' : 'none';
+    
+    // Show/hide color scale
+    document.getElementById('colorScale').style.display = 
+        view === 'heatmap' ? 'block' : 'none';
+    
+    // Clear existing layers
+    clearConfusionLayers();
+    clearTileHeatmap();
+    
+    // Render appropriate view
+    if (view === 'confusion') {
+        renderConfusionLayers();
+    } else {
+        renderTileHeatmap();
+    }
+}
+
+// Render confusion matrix layers
+function renderConfusionLayers() {
+    // Remove existing layer control if present
+    if (state.layerControl) {
+        state.map.removeControl(state.layerControl);
+    }
+    
+    // Clear existing layers
+    clearConfusionLayers();
+    
+    if (!state.geojsonData) return;
+    
+    // Create layers
+    state.confusionLayers.tp = L.geoJSON(state.geojsonData.tp, {
+        style: {
+            color: '#27ae60',
+            weight: 3,
+            opacity: 0.8
+        },
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup('<b>True Positive</b><br>ML prediction matches OSM ground truth');
+        }
+    });
+    
+    state.confusionLayers.fp = L.geoJSON(state.geojsonData.fp, {
+        style: {
+            color: '#e67e22',
+            weight: 3,
+            opacity: 0.8
+        },
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup('<b>False Positive</b><br>ML prediction with no OSM match');
+        }
+    });
+    
+    state.confusionLayers.fn = L.geoJSON(state.geojsonData.fn, {
+        style: {
+            color: '#e74c3c',
+            weight: 3,
+            opacity: 0.8
+        },
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup('<b>False Negative</b><br>OSM path outside ML polygons');
+        }
+    });
+    
+    state.confusionLayers.mlPolygons = L.geoJSON(state.geojsonData.mlPolygons, {
+        style: {
+            color: '#3498db',
+            weight: 1,
+            fillColor: '#3498db',
+            fillOpacity: 0.1
+        },
+        onEachFeature: (feature, layer) => {
+            layer.bindPopup('<b>ML Polygon</b><br>Detected pedestrian area');
+        }
+    });
+    
+    state.confusionLayers.osm = L.geoJSON(state.geojsonData.osm, {
+        style: {
+            color: '#95a5a6',
+            weight: 2,
+            opacity: 0.5
+        },
+        onEachFeature: (feature, layer) => {
+            const props = feature.properties;
+            const popup = `<b>OSM Ground Truth</b><br>
+                Highway: ${props.highway || 'N/A'}<br>
+                Name: ${props.name || 'N/A'}`;
+            layer.bindPopup(popup);
+        }
+    });
+    
+    // Create overlay layers object for layer control
+    const overlays = {
+        'True Positives': state.confusionLayers.tp,
+        'False Positives': state.confusionLayers.fp,
+        'False Negatives': state.confusionLayers.fn,
+        'ML Polygons': state.confusionLayers.mlPolygons,
+        'OSM Ground Truth': state.confusionLayers.osm
+    };
+    
+    // Add all layers by default
+    Object.values(state.confusionLayers).forEach(layer => layer.addTo(state.map));
+    
+    // Add layer control
+    state.layerControl = L.control.layers(null, overlays, { collapsed: false }).addTo(state.map);
+}
+
+// Clear confusion layers
+function clearConfusionLayers() {
+    Object.values(state.confusionLayers).forEach(layer => {
+        if (layer && state.map.hasLayer(layer)) {
+            state.map.removeLayer(layer);
+        }
+    });
+    state.confusionLayers = {};
+}
+
+// Render tile heatmap
+function renderTileHeatmap() {
+    clearTileHeatmap();
+    
+    if (!state.perTileData) return;
+    
+    // Filter out tiles with no data for heatmap
+    const tilesWithData = state.perTileData.filter(tile => 
+        tile.osm_count > 0 || tile.ml_network_count > 0
+    );
+    
+    const metric = state.currentHeatmapMetric;
+    
+    // Get metric values and calculate min/max
+    const values = tilesWithData.map(t => t[metric]).filter(v => v != null && !isNaN(v));
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    
+    // Update color scale
+    document.getElementById('scaleMin').textContent = minValue.toFixed(3);
+    document.getElementById('scaleMax').textContent = maxValue.toFixed(3);
+    
+    // Create color scale function
+    const getColor = (value) => {
+        if (value == null || isNaN(value)) return '#cccccc';
+        
+        const normalized = (value - minValue) / (maxValue - minValue);
+        
+        // Red -> Yellow -> Green color scale
+        if (normalized < 0.5) {
+            const r = 215;
+            const g = Math.floor(115 + (224 - 115) * (normalized * 2));
+            const b = Math.floor(39 + (139 - 39) * (normalized * 2));
+            return `rgb(${r}, ${g}, ${b})`;
+        } else {
+            const r = Math.floor(254 - (254 - 26) * ((normalized - 0.5) * 2));
+            const g = Math.floor(224 - (224 - 152) * ((normalized - 0.5) * 2));
+            const b = Math.floor(139 - (139 - 80) * ((normalized - 0.5) * 2));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+    };
+    
+    // Create GeoJSON features for tiles with data only
+    const tileFeatures = tilesWithData.map(tile => {
+        const xtile = tile.xtile;
+        const ytile = tile.ytile;
+        const zoom = 19;
+        
+        const topLeftLat = tile2lat(ytile, zoom);
+        const topLeftLon = tile2lon(xtile, zoom);
+        const bottomRightLat = tile2lat(ytile + 1, zoom);
+        const bottomRightLon = tile2lon(xtile + 1, zoom);
+        
+        return {
+            type: 'Feature',
+            properties: tile,
+            geometry: {
+                type: 'Polygon',
+                coordinates: [[
+                    [topLeftLon, topLeftLat],
+                    [bottomRightLon, topLeftLat],
+                    [bottomRightLon, bottomRightLat],
+                    [topLeftLon, bottomRightLat],
+                    [topLeftLon, topLeftLat]
+                ]]
+            }
+        };
+    });
+    
+    // Create layer
+    state.tileHeatmapLayer = L.geoJSON({
+        type: 'FeatureCollection',
+        features: tileFeatures
+    }, {
+        style: (feature) => {
+            const value = feature.properties[metric];
+            return {
+                fillColor: getColor(value),
+                fillOpacity: 0.6,
+                color: '#333',
+                weight: 1,
+                opacity: 0.8
+            };
+        },
+        onEachFeature: (feature, layer) => {
+            const props = feature.properties;
             
-            const parts = line.split(',');
-            if (parts.length < 9) return;
+            // Get tile image path using sample configuration
+            const config = sampleConfig[state.currentSample];
+            const imageUrl = config ? 
+                `${config.tilePath}/${props.xtile}_${props.ytile}.${config.imageExtension}` :
+                '';
             
-            // CSV columns: , idd, zoom, xtile, ytile, topleft_x, topleft_y, bottomright_x, bottomright_y
-            const xtile = parts[3];
-            const ytile = parts[4];
-            const topLeftLon = parseFloat(parts[5]);
-            const topLeftLat = parseFloat(parts[6]);
-            const bottomRightLon = parseFloat(parts[7]);
-            const bottomRightLat = parseFloat(parts[8]);
-            
-            // Create bounds for the tile
-            const bounds = [
-                [bottomRightLat, topLeftLon],
-                [topLeftLat, bottomRightLon]
-            ];
-            
-            // Add image overlay
-            const imageUrl = `${config.tilesPath}${xtile}_${ytile}.jpg`;
-            const imageOverlay = L.imageOverlay(imageUrl, bounds, {
-                opacity: 0.8,
-                interactive: false
+            // Add click handler to show modal instead of popup
+            layer.on('click', function() {
+                showTileDetailsModal(props, imageUrl);
             });
             
-            imageOverlay.addTo(layers.tiles);
-            tileCount++;
-        });
-        
-        console.log(`Loaded ${tileCount} aerial imagery tiles`);
-        loadStatus.tiles = true;
-        updateStatus();
-    } catch (error) {
-        console.error('Error loading tiles:', error);
-        loadStatus.tiles = 'error';
-        updateStatus();
-    }
-}
-
-// Function to load shapefile using shpjs
-async function loadShapefile(basePath, layerGroup, style, onEachFeature) {
-    try {
-        // shpjs needs the actual file buffers, not just a path
-        // Load all required shapefile components
-        const shpResponse = await fetch(basePath + '.shp');
-        const dbfResponse = await fetch(basePath + '.dbf');
-        const prjResponse = await fetch(basePath + '.prj');
-        
-        if (!shpResponse.ok || !dbfResponse.ok) {
-            throw new Error('Failed to load shapefile components');
-        }
-        
-        const shpBuffer = await shpResponse.arrayBuffer();
-        const dbfBuffer = await dbfResponse.arrayBuffer();
-        const prjText = await prjResponse.text();
-        
-        // Parse shapefile using shpjs
-        const data = await shp.parseShp(shpBuffer, dbfBuffer);
-        
-        // Add to map
-        const layer = L.geoJSON(data, {
-            style: style,
-            onEachFeature: onEachFeature
-        });
-        
-        layer.addTo(layerGroup);
-        
-        return layer;
-    } catch (error) {
-        console.error(`Error loading shapefile ${basePath}:`, error);
-        throw error;
-    }
-}
-
-// Load network (paths)
-async function loadNetwork() {
-    try {
-        const networkStyle = {
-            color: '#0066ff',
-            weight: 4,
-            opacity: 0.8,
-            lineJoin: 'round',
-            lineCap: 'round'
-        };
-        
-        const onEachFeature = (feature, layer) => {
-            if (feature.properties) {
-                let popupContent = '<strong>Detected Path</strong><br>';
-                for (const [key, value] of Object.entries(feature.properties)) {
-                    popupContent += `${key}: ${value}<br>`;
-                }
-                layer.bindPopup(popupContent);
-            }
-        };
-        
-        await loadShapefile(config.networkPath, layers.network, networkStyle, onEachFeature);
-        console.log('Network (paths) loaded successfully');
-        loadStatus.network = true;
-        updateStatus();
-    } catch (error) {
-        console.error('Error loading network:', error);
-        loadStatus.network = 'error';
-        updateStatus();
-    }
-}
-
-// Load polygons (areas)
-async function loadPolygons() {
-    try {
-        const polygonStyle = {
-            color: '#cc0000',
-            weight: 2,
-            fillColor: '#ff6464',
-            fillOpacity: 0.3,
-            opacity: 0.8
-        };
-        
-        const onEachFeature = (feature, layer) => {
-            if (feature.properties) {
-                let popupContent = '<strong>Detected Area</strong><br>';
-                for (const [key, value] of Object.entries(feature.properties)) {
-                    popupContent += `${key}: ${value}<br>`;
-                }
-                layer.bindPopup(popupContent);
-            }
-        };
-        
-        await loadShapefile(config.polygonsPath, layers.polygons, polygonStyle, onEachFeature);
-        console.log('Polygons (areas) loaded successfully');
-        loadStatus.polygons = true;
-        updateStatus();
-    } catch (error) {
-        console.error('Error loading polygons:', error);
-        loadStatus.polygons = 'error';
-        updateStatus();
-    }
-}
-
-// Load OpenStreetMap ground truth data via Overpass API
-async function loadOverpassData() {
-    try {
-        // Build Overpass QL query for pedestrian paths
-        // Includes: footway, pedestrian highways, sidewalks, and paths
-        const bbox = config.bbox; // [minLat, maxLat, minLon, maxLon]
-        const overpassQuery = `
-[out:json][timeout:25];
-(
-  // Footways and pedestrian ways
-  way["highway"="footway"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  way["highway"="pedestrian"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  way["highway"="path"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  way["highway"="steps"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  
-  // Sidewalks (tagged as separate ways)
-  way["footway"="sidewalk"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  
-  // Roads with sidewalk tags
-  way["sidewalk"="both"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  way["sidewalk"="left"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  way["sidewalk"="right"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-  way["sidewalk"="yes"](${bbox[0]},${bbox[2]},${bbox[1]},${bbox[3]});
-);
-out geom;
-`;
-
-        const overpassUrl = 'https://overpass-api.de/api/interpreter';
-        const response = await fetch(overpassUrl, {
-            method: 'POST',
-            body: 'data=' + encodeURIComponent(overpassQuery)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Overpass API error: ${response.status}`);
-        }
-
-        const osmData = await response.json();
-        console.log(`Received ${osmData.elements.length} OSM elements`);
-
-        // Convert Overpass JSON to GeoJSON
-        const geojson = osmToGeoJSON(osmData);
-
-        // Style based on highway type
-        const getStyle = (feature) => {
-            const props = feature.properties;
-            const highway = props.highway;
-            const footway = props.footway;
-            const sidewalk = props.sidewalk;
+            layer.on('mouseover', function() {
+                this.setStyle({ weight: 3, opacity: 1 });
+            });
             
-            // Different styles for different types
-            if (highway === 'pedestrian') {
-                return { color: '#00cc00', weight: 4, opacity: 0.7 };
-            } else if (highway === 'footway' && footway === 'sidewalk') {
-                return { color: '#66ff66', weight: 2, opacity: 0.6, dashArray: '5, 5' };
-            } else if (sidewalk) {
-                return { color: '#99ff99', weight: 2, opacity: 0.6, dashArray: '3, 3' };
-            } else if (highway === 'steps') {
-                return { color: '#00aa00', weight: 3, opacity: 0.7, dashArray: '2, 4' };
-            } else {
-                return { color: '#00dd00', weight: 3, opacity: 0.7 };
-            }
-        };
-
-        const onEachFeature = (feature, layer) => {
-            if (feature.properties) {
-                let popupContent = '<strong>OSM Ground Truth</strong><br>';
-                popupContent += `<strong>Type:</strong> ${feature.properties.highway || 'N/A'}<br>`;
-                
-                if (feature.properties.name) {
-                    popupContent += `<strong>Name:</strong> ${feature.properties.name}<br>`;
-                }
-                if (feature.properties.footway) {
-                    popupContent += `<strong>Footway:</strong> ${feature.properties.footway}<br>`;
-                }
-                if (feature.properties.sidewalk) {
-                    popupContent += `<strong>Sidewalk:</strong> ${feature.properties.sidewalk}<br>`;
-                }
-                if (feature.properties.surface) {
-                    popupContent += `<strong>Surface:</strong> ${feature.properties.surface}<br>`;
-                }
-                if (feature.properties.width) {
-                    popupContent += `<strong>Width:</strong> ${feature.properties.width}<br>`;
-                }
-                
-                popupContent += `<strong>OSM ID:</strong> ${feature.properties.id || feature.id}<br>`;
-                layer.bindPopup(popupContent);
-            }
-        };
-
-        // Add to map
-        const layer = L.geoJSON(geojson, {
-            style: getStyle,
-            onEachFeature: onEachFeature
-        });
-
-        layer.addTo(layers.overpass);
-
-        console.log('Overpass ground truth data loaded successfully');
-        loadStatus.overpass = true;
-        updateStatus();
-    } catch (error) {
-        console.error('Error loading Overpass data:', error);
-        loadStatus.overpass = 'error';
-        updateStatus();
-    }
-}
-
-// Convert Overpass JSON to GeoJSON
-function osmToGeoJSON(osmData) {
-    const features = [];
-    
-    osmData.elements.forEach(element => {
-        if (element.type === 'way' && element.geometry) {
-            const coordinates = element.geometry.map(node => [node.lon, node.lat]);
-            
-            features.push({
-                type: 'Feature',
-                id: element.id,
-                properties: element.tags || {},
-                geometry: {
-                    type: 'LineString',
-                    coordinates: coordinates
-                }
+            layer.on('mouseout', function() {
+                this.setStyle({ weight: 1, opacity: 0.8 });
             });
         }
     });
     
-    return {
-        type: 'FeatureCollection',
-        features: features
+    state.tileHeatmapLayer.addTo(state.map);
+}
+
+// Create tile popup content
+function createTilePopup(props, imageUrl) {
+    return `
+        <div class="tile-popup">
+            <h4>Tile ${props.tile_id}</h4>
+            <img src="${imageUrl}" alt="Tile imagery" onerror="this.style.display='none'">
+            
+            <div style="background: #f8f9fa; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                <b>Location</b>
+                <div class="metric-row">
+                    <span class="metric-label">Position:</span>
+                    <span class="metric-value">(${props.xtile}, ${props.ytile})</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Center:</span>
+                    <span class="metric-value">(${props.lat.toFixed(6)}, ${props.lon.toFixed(6)})</span>
+                </div>
+            </div>
+            
+            <div style="background: #e8f5e9; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                <b>Performance</b>
+                <div class="metric-row">
+                    <span class="metric-label">F1 Score:</span>
+                    <span class="metric-value">${props.f1_score.toFixed(3)}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Precision:</span>
+                    <span class="metric-value">${props.precision.toFixed(3)}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Recall:</span>
+                    <span class="metric-value">${props.recall.toFixed(3)}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">IoU:</span>
+                    <span class="metric-value">${props.iou.toFixed(3)}</span>
+                </div>
+            </div>
+            
+            <div style="background: #fff3e0; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                <b>Detections</b>
+                <div class="metric-row">
+                    <span class="metric-label">ML Network:</span>
+                    <span class="metric-value">${props.ml_network_count}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">ML Polygons:</span>
+                    <span class="metric-value">${props.ml_polygon_count}</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">OSM Paths:</span>
+                    <span class="metric-value">${props.osm_count}</span>
+                </div>
+            </div>
+            
+            <div style="background: #e1f5fe; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                <b>Lengths (m)</b>
+                <div class="metric-row">
+                    <span class="metric-label">TP:</span>
+                    <span class="metric-value">${props.tp_length_m.toFixed(1)}m</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">FP:</span>
+                    <span class="metric-value">${props.fp_length_m.toFixed(1)}m</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">FN:</span>
+                    <span class="metric-value">${props.fn_length_m.toFixed(1)}m</span>
+                </div>
+            </div>
+            
+            ${props.buildings_pct != null ? `
+            <div style="background: #f3e5f5; padding: 8px; margin: 5px 0; border-radius: 4px;">
+                <b>Area Composition</b>
+                <div class="metric-row">
+                    <span class="metric-label">Buildings:</span>
+                    <span class="metric-value">${props.buildings_pct.toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Roads:</span>
+                    <span class="metric-value">${props.roads_pct.toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Pedestrian:</span>
+                    <span class="metric-value">${props.pedestrian_areas_pct.toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Green:</span>
+                    <span class="metric-value">${props.green_spaces_pct.toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Water:</span>
+                    <span class="metric-value">${props.water_pct.toFixed(1)}%</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-label">Unmapped:</span>
+                    <span class="metric-value">${props.unmapped_pct.toFixed(1)}%</span>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// Clear tile heatmap
+function clearTileHeatmap() {
+    if (state.tileHeatmapLayer) {
+        state.map.removeLayer(state.tileHeatmapLayer);
+        state.tileHeatmapLayer = null;
+    }
+}
+
+// Render global statistics
+function renderGlobalStats() {
+    if (!state.globalData) return;
+    
+    const data = state.globalData;
+    
+    const statsHTML = `
+        <div class="stat-card">
+            <h3>F1 Score</h3>
+            <div class="value">${(data.f1_score * 100).toFixed(2)}%</div>
+            <div class="subvalue">Harmonic mean of precision and recall</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Precision</h3>
+            <div class="value">${(data.precision * 100).toFixed(2)}%</div>
+            <div class="subvalue">TP / (TP + FP)</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Recall</h3>
+            <div class="value">${(data.recall * 100).toFixed(2)}%</div>
+            <div class="subvalue">TP / (TP + FN)</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>IoU</h3>
+            <div class="value">${(data.iou * 100).toFixed(2)}%</div>
+            <div class="subvalue">Intersection over Union</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>True Positives</h3>
+            <div class="value">${data.tp_length_m.toFixed(0)}m</div>
+            <div class="subvalue">${data.tp_count} segments</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>False Positives</h3>
+            <div class="value">${data.fp_length_m.toFixed(0)}m</div>
+            <div class="subvalue">${data.fp_count} segments</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>False Negatives</h3>
+            <div class="value">${data.fn_length_m.toFixed(0)}m</div>
+            <div class="subvalue">${data.fn_count} segments</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>ML Network Total</h3>
+            <div class="value">${data.ml_total_length_m.toFixed(0)}m</div>
+            <div class="subvalue">${data.ml_in_polygon_length_m.toFixed(0)}m in polygons</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>OSM Network Total</h3>
+            <div class="value">${data.osm_total_length_m.toFixed(0)}m</div>
+            <div class="subvalue">${data.osm_in_polygon_length_m.toFixed(0)}m in polygons</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>ML Polygons</h3>
+            <div class="value">${data.polygon_count}</div>
+            <div class="subvalue">${data.polygon_area_sqm.toFixed(0)} m²</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Buffer Distance</h3>
+            <div class="value">${data.buffer_distance_m}m</div>
+            <div class="subvalue">Matching tolerance</div>
+        </div>
+        
+        <div class="stat-card">
+            <h3>Method</h3>
+            <div class="value" style="font-size: 14px;">Polygon-based</div>
+            <div class="subvalue">Segmented validation</div>
+        </div>
+    `;
+    
+    document.getElementById('statsGrid').innerHTML = statsHTML;
+}
+
+// Render scatter plot
+function renderScatterPlot() {
+    if (!state.perTileData) return;
+    
+    // Filter out tiles with no data for scatter plot
+    const tilesWithData = state.perTileData.filter(tile => 
+        tile.osm_count > 0 || tile.ml_network_count > 0
+    );
+    
+    const xMetric = document.getElementById('scatterXSelect').value;
+    const yMetric = document.getElementById('scatterYSelect').value;
+    
+    const xValues = tilesWithData.map(t => t[xMetric]);
+    const yValues = tilesWithData.map(t => t[yMetric]);
+    const tileIds = tilesWithData.map(t => t.tile_id);
+    
+    // Get tile image paths using sample configuration
+    const imgConfig = sampleConfig[state.currentSample];
+    const imageUrls = imgConfig ? 
+        tilesWithData.map(t => 
+            `${imgConfig.tilePath}/${t.xtile}_${t.ytile}.${imgConfig.imageExtension}`
+        ) : [];
+    
+    // Create hover text
+    const hoverText = tilesWithData.map((t, i) => 
+        `Tile ${t.tile_id}<br>` +
+        `${xMetric}: ${xValues[i]}<br>` +
+        `${yMetric}: ${yValues[i]}<br>` +
+        `F1: ${t.f1_score.toFixed(3)}<br>` +
+        `Click for details`
+    );
+    
+    const trace = {
+        x: xValues,
+        y: yValues,
+        mode: 'markers',
+        type: 'scatter',
+        text: hoverText,
+        hoverinfo: 'text',
+        marker: {
+            size: 8,
+            color: tilesWithData.map(t => t.f1_score),
+            colorscale: [
+                [0, '#d73027'],
+                [0.5, '#fee08b'],
+                [1, '#1a9850']
+            ],
+            showscale: true,
+            colorbar: {
+                title: 'F1 Score',
+                thickness: 15,
+                len: 0.7
+            },
+            line: {
+                color: '#333',
+                width: 1
+            }
+        },
+        customdata: tilesWithData.map((t, i) => ({
+            tile: t,
+            imageUrl: imageUrls[i]
+        }))
     };
-}
-
-// Add layer control
-const overlays = {
-    'Aerial Imagery Tiles': layers.tiles,
-    'Detected Paths (Network)': layers.network,
-    'Detected Areas (Polygons)': layers.polygons,
-    'OSM Ground Truth (Overpass)': layers.overpass
-};
-
-L.control.layers(null, overlays, { collapsed: false }).addTo(map);
-
-// Add scale
-L.control.scale({ imperial: true, metric: true }).addTo(map);
-
-// Initialize - load all data
-async function init() {
-    document.getElementById('loading').style.display = 'block';
     
-    try {
-        // Load tiles first (background layer)
-        await loadTiles();
+    const layout = {
+        xaxis: {
+            title: formatMetricLabel(xMetric),
+            gridcolor: '#e0e0e0'
+        },
+        yaxis: {
+            title: formatMetricLabel(yMetric),
+            gridcolor: '#e0e0e0'
+        },
+        hovermode: 'closest',
+        margin: { t: 20, r: 20, b: 60, l: 60 },
+        plot_bgcolor: '#fafafa',
+        paper_bgcolor: 'white'
+    };
+    
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        displaylogo: false,
+        modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    };
+    
+    Plotly.newPlot('scatterPlot', [trace], layout, config);
+    
+    // Add click handler
+    document.getElementById('scatterPlot').on('plotly_click', function(data) {
+        const point = data.points[0];
+        const customData = point.customdata;
         
-        // Then load vector layers
-        await Promise.all([
-            loadNetwork(),
-            loadPolygons(),
-            loadOverpassData()
-        ]);
-        
-        // Fit map to the detected features
-        const allLayers = [...layers.network.getLayers(), ...layers.polygons.getLayers()];
-        if (allLayers.length > 0) {
-            const group = L.featureGroup(allLayers);
-            map.fitBounds(group.getBounds(), { padding: [50, 50] });
-        }
-    } catch (error) {
-        console.error('Initialization error:', error);
-    } finally {
-        document.getElementById('loading').style.display = 'none';
-    }
+        showTileDetailsModal(customData.tile, customData.imageUrl);
+    });
 }
 
-// Start the application
-init();
-
-// Add click event to show coordinates (useful for debugging)
-map.on('click', function(e) {
-    console.log('Clicked at:', e.latlng);
-});
-
-// Analysis functionality
-let comparisonLayer = null;
-
-function runAnalysis() {
-    console.log('Running confusion matrix analysis...');
+// Format metric labels for display
+function formatMetricLabel(metric) {
+    const labels = {
+        'f1_score': 'F1 Score',
+        'precision': 'Precision',
+        'recall': 'Recall',
+        'iou': 'IoU',
+        'tp_length_m': 'True Positive Length (m)',
+        'fp_length_m': 'False Positive Length (m)',
+        'fn_length_m': 'False Negative Length (m)',
+        'buildings_pct': 'Buildings (%)',
+        'roads_pct': 'Roads (%)',
+        'green_spaces_pct': 'Green Spaces (%)',
+        'pedestrian_areas_pct': 'Pedestrian Areas (%)',
+        'water_pct': 'Water (%)',
+        'unmapped_pct': 'Unmapped (%)'
+    };
     
-    // Disable button and show loading
-    const btn = document.getElementById('analyze-btn');
-    btn.disabled = true;
-    btn.textContent = 'Computing...';
+    return labels[metric] || metric;
+}
+
+// Show tile details modal (popup)
+function showTileDetailsModal(tile, imageUrl) {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.7);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    `;
     
-    // Use setTimeout to allow UI to update
-    setTimeout(() => {
-        try {
-            // Get features from layers
-            const mlFeatures = AnalysisModule.layerToTurfGeometries(layers.network);
-            const osmFeatures = AnalysisModule.layerToTurfGeometries(layers.overpass);
-            
-            console.log('ML features extracted:', mlFeatures.length);
-            console.log('OSM features extracted:', osmFeatures.length);
-            
-            if (mlFeatures.length === 0 || osmFeatures.length === 0) {
-                alert('Both ML network and OSM ground truth layers must be loaded and contain valid geometries!');
-                btn.disabled = false;
-                btn.textContent = 'Compute Confusion Matrix';
-                return;
-            }
-            
-            // Compute confusion matrix
-            const results = AnalysisModule.computeConfusionMatrix(mlFeatures, osmFeatures);
-            
-            if (!results) {
-                alert('Analysis failed - check console for errors');
-                btn.disabled = false;
-                btn.textContent = 'Compute Confusion Matrix';
-                return;
-            }
-            
-            // Display results
-            AnalysisModule.displayResults(results);
-            
-            btn.textContent = 'Re-compute Analysis';
-            btn.disabled = false;
-            
-            // Skip visual overlay generation as it's too slow
-            console.log('Visual overlay generation skipped (too computationally expensive)');
-            
-        } catch (error) {
-            console.error('Analysis error:', error);
-            alert('Analysis failed: ' + error.message);
-            btn.disabled = false;
-            btn.textContent = 'Compute Confusion Matrix';
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = `
+        background: white;
+        border-radius: 8px;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    `;
+    
+    modalContent.innerHTML = createTilePopup(tile, imageUrl);
+    
+    // Add close button
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.style.cssText = `
+        margin-top: 15px;
+        padding: 10px 20px;
+        background: #3498db;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+    `;
+    closeBtn.onclick = () => document.body.removeChild(modal);
+    
+    modalContent.appendChild(closeBtn);
+    modal.appendChild(modalContent);
+    
+    // Close on outside click
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
         }
-    }, 100);
+    };
+    
+    document.body.appendChild(modal);
 }
 
-// Enable analysis button when all data is loaded
-document.getElementById('analyze-btn').addEventListener('click', runAnalysis);
-
-// Check if analysis can be run
-function checkAnalysisReady() {
-    if (loadStatus.network === true && loadStatus.overpass === true) {
-        document.getElementById('analyze-btn').disabled = false;
-        document.getElementById('analyze-btn').title = 'Click to compute confusion matrix';
-    }
+// Fit map to data bounds
+function fitMapToBounds() {
+    if (!state.perTileData || state.perTileData.length === 0) return;
+    
+    const lats = state.perTileData.map(t => t.lat);
+    const lons = state.perTileData.map(t => t.lon);
+    
+    const bounds = [
+        [Math.min(...lats), Math.min(...lons)],
+        [Math.max(...lats), Math.max(...lons)]
+    ];
+    
+    state.map.fitBounds(bounds, { padding: [50, 50] });
 }
 
-// Add to updateStatus function
-const originalUpdateStatus = updateStatus;
-updateStatus = function() {
-    originalUpdateStatus();
-    checkAnalysisReady();
-};
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', init);
